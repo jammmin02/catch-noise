@@ -32,6 +32,22 @@ outputs/
 *.tsv
 *.json
 
+# ▶️ 오디오 파일 (음성 데이터 등)
+*.wav
+*.mp3
+*.flac
+*.aac
+*.ogg
+
+# ▶️ 이미지 파일 (데이터 시각화 / 입력 이미지 등)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.webp
+
 # ▶️ Docker 빌드 파일들 (로그 등)
 *.tar
 *.log
