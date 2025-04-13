@@ -1,6 +1,49 @@
+# ▶️ Python 관련
 __pycache__/
-*.pyc
-.env
-*.pth
+*.py[cod]
+*.so
+*.egg-info/
+*.log
+
+# ▶️ 가상환경
+.venv/
+env/
+venv/
+ENV/
+
+# ▶️ Jupyter Notebook 체크포인트
+.ipynb_checkpoints/
+
+# ▶️ VSCode 설정
+.vscode/
+
+# ▶️ 데이터/모델/출력
+data/
 outputs/
-models/
+*.h5
+*.pt
+*.pth
+*.onnx
+*.joblib
+*.pkl
+*.npy
+*.npz
+*.csv
+*.tsv
+*.json
+
+# ▶️ Docker 빌드 파일들 (로그 등)
+*.tar
+*.log
+*.pid
+
+# ▶️ 테스트 디렉토리 (테스트 오디오 등)
+test_audio_batch/
+test_output/
+
+# ▶️ MacOS / Windows 자동 생성 파일
+.DS_Store
+Thumbs.db
+
+# ▶️ Git 백업 충돌
+*.orig
