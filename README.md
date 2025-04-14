@@ -6,7 +6,7 @@ AI를 활용해 교실 소음을 실시간으로 분석하고, 학습을 방해�
 
 <br>
 
-## 📂 REPOSITORY 구 조 도
+## 📂 REPOSITORY 구조도
 
 <img src="https://github.com/HyoChan1117/HyoChan1117/raw/master/team_project-structure.drawio.png" alt="Project Structure" width="80%">
 
