@@ -1,3 +1,3 @@
-print("TEST")
+print ("TEST")
 print("azuki")
-ptint("hello world")
+print("Hello")
