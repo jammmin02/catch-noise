@@ -3,8 +3,8 @@ import subprocess
 import zipfile
 
 # 설정
-input_dir = "../../model_make_test/data"  # 모든 클래스 폴더가 있는 상위 경로
-output_dir = "trimming_file"              # 잘린 오디오 저장 경로
+input_dir = "hyochan/model_make_test/data"  # 모든 클래스 폴더가 있는 상위 경로
+output_dir = "hyochan/audio_trimming/trimming_file"              # 잘린 오디오 저장 경로
 zip_output_path = "output_segments.zip"   # 압축 파일명
 segment_duration = 2                      # 자를 시간 (초)
 
