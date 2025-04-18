@@ -17,9 +17,9 @@ segment_duration = 3.0
 frame_per_second = sr / hop_length
 max_len = int(frame_per_second * segment_duration)
 
-model_path = "dev/jungmin/dataset/outputs/cnn_lstm/cnn_lstm_model.h5"
+model_path = "dev/jungmin/3class_binaryview/outputs/cnn_lstm_bview_model.h5"
 test_folder = "dev/jungmin/test_audio_batch"
-save_dir = os.path.join(test_folder, "visuals")
+save_dir = os.path.join(test_folder, "visuals_bview")
 
 class_names = ['silent', 'neutral', 'noisy']
 class_colors = {'silent': 'skyblue', 'neutral': 'orange', 'noisy': 'tomato'}
@@ -46,7 +46,7 @@ def preprocess_segment(y_audio):
         features = np.pad(features, ((0, 0), (0, max_len - features.shape[1])), mode='constant')
     else:
         features = features[:, :max_len]
-    return features.T[np.newaxis, ..., np.newaxis]  # (1, max_len, 14, 1)
+    return features.T[np.newaxis, ..., np.newaxis]
 
 # 🔍 Predict per segment
 def predict_file(file_path):
@@ -90,7 +90,6 @@ def plot_results(results, true_labels, pred_labels):
 
     results.sort(key=lambda x: np.max(x[1]), reverse=True)
 
-    # 🔄 For each chunk of 100 segments
     for idx, chunk in enumerate(chunk_list(results, 100), start=1):
         names = [x[0] for x in chunk]
         probs = [np.max(x[1]) for x in chunk]
@@ -105,12 +104,13 @@ def plot_results(results, true_labels, pred_labels):
         plt.xlim(0, 1)
         plt.gca().invert_yaxis()
         for bar, prob, label in zip(bars, probs, labels):
+            view_label = "🚨방해됨" if label == "noisy" else "🟢허용"
             plt.text(prob + 0.01, bar.get_y() + bar.get_height()/2,
-                     f"{prob:.2f} ({label})", va='center', fontsize=10)
+                     f"{prob:.2f} ({view_label})", va='center', fontsize=10)
         plt.tight_layout()
         fname = os.path.join(save_dir, f"all_segments_result_{idx}.png")
         plt.savefig(fname)
-        plt.close()  # 💡 메모리 절약
+        plt.close()
 
     # Confusion matrix
     cm = confusion_matrix(true_labels, pred_labels, labels=class_names)
@@ -121,7 +121,6 @@ def plot_results(results, true_labels, pred_labels):
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, "confusion_matrix.png"))
     plt.close()
-
 
 # 🚀 Run predictions
 if __name__ == "__main__":
@@ -150,3 +149,9 @@ if __name__ == "__main__":
                 pred_labels.append(r[2])
 
         plot_results(results_all, true_labels, pred_labels)
+
+        # 🔍 B안 방식 해석: noisy vs 나머지
+        binary_pred = ["방해됨" if p == "noisy" else "방해되지 않음" for p in pred_labels]
+        print("\n📢 [B안 해석] 예측 요약 (noisy vs not-noisy)")
+        print(f"🟥 방해됨: {binary_pred.count('방해됨')}")
+        print(f"🟩 방해되지 않음: {binary_pred.count('방해되지 않음')}")
