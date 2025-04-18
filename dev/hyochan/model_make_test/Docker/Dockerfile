@@ -16,7 +16,7 @@ COPY . /app
 
 # ✅ pip 업그레이드 및 requirements 설치
 RUN pip install --upgrade pip
-RUN pip install -r dev/hyochan/Docker/requirements.txt
+RUN pip install -r hyochan/model_make_test/Docker/requirements.txt
 
 # ✅ 기본 실행 명령어는 bash 셸
 CMD ["bash"]

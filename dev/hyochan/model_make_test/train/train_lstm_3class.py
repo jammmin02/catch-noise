@@ -7,7 +7,7 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Reshape, LSTM, Dense, 
 from tensorflow.keras.callbacks import EarlyStopping
 
 # 🔧 경로 설정
-base_dir = "dev/hyochan/dataset/outputs/cnn_lstm"
+base_dir = "hyochan/model_make_test/dataset/outputs/cnn_lstm"
 X_path = os.path.join(base_dir, "X_lstm.npy")
 y_path = os.path.join(base_dir, "y_lstm.npy")
 model_save_path = os.path.join(base_dir, "cnn_lstm_model.h5")
