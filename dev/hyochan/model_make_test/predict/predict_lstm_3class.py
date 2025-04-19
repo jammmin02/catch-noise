@@ -17,8 +17,8 @@ segment_duration = 3.0
 frame_per_second = sr / hop_length
 max_len = int(frame_per_second * segment_duration)
 
-model_path = "dev/jungmin/dataset/outputs/cnn_lstm/cnn_lstm_model.h5"
-test_folder = "dev/jungmin/test_audio_batch"
+model_path = "hyochan/model_make_test/dataset/outputs/cnn_lstm/cnn_lstm_model.h5"
+test_folder = "hyochan/model_make_test/test_audio_batch"
 save_dir = os.path.join(test_folder, "visuals")
 
 class_names = ['silent', 'neutral', 'noisy']
