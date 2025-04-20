@@ -39,6 +39,11 @@ def convert_to_wav(file_path):
     subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return temp_wav
 
+def cleanup_temp_files():
+    for file in os.listdir():
+        if file.startswith("temp_") and file.endswith(".wav"):
+            os.remove(file)
+
 def preprocess_segment(y_audio):
     mfcc = librosa.feature.mfcc(y=y_audio, sr=sr, n_mfcc=n_mfcc, hop_length=hop_length)
     zcr = librosa.feature.zero_crossing_rate(y=y_audio, hop_length=hop_length)
@@ -139,6 +144,16 @@ def save_prediction_table(true_labels, pred_labels, segment_names, save_path):
     df.to_csv(save_path, index=False)
     print(f"📄 {save_path} saved")
 
+def print_performance_summary(true_labels, pred_labels):
+    acc = accuracy_score(true_labels, pred_labels)
+    precision, recall, f1, _ = precision_recall_fscore_support(true_labels, pred_labels, average='macro')
+    print("\n📊 Performance Summary")
+    print("-----------------------")
+    print(f"Accuracy : {acc:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall   : {recall:.4f}")
+    print(f"F1 Score : {f1:.4f}")
+
 # 🚀 Run predictions
 if __name__ == "__main__":
     results_all = []
@@ -175,5 +190,8 @@ if __name__ == "__main__":
         plot_confusion_matrix(true_labels, pred_labels, os.path.join(save_dir, "confusion_matrix.png"))
         plot_class_metrics(true_labels, pred_labels, os.path.join(save_dir, "per_class_metrics.png"))
         save_prediction_table(true_labels, pred_labels, segment_names, os.path.join(save_dir, "prediction_result_table.csv"))
+        print_performance_summary(true_labels, pred_labels)
+        cleanup_temp_files()
 
         print("✅ All evaluation results saved.")
+    
