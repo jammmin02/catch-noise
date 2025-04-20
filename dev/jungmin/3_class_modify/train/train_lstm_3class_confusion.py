@@ -7,7 +7,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Reshape, LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
 
-# 🔧 설정
+# 🔧 기본 설정 
 segment_duration = 3.0
 base_dir = "dev/jungmin/3_class_modify/dataset/outputs/cnn_lstm"
 X_path = os.path.join(base_dir, "X_lstm.npy")
@@ -141,3 +141,4 @@ plt.tight_layout()
 plt.savefig(confidence_plot_path)
 plt.show()
 print(f"📊 Softmax confidence histogram saved: {confidence_plot_path}")
+
