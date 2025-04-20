@@ -20,7 +20,7 @@ save_visuals = True
 frame_per_second = sr / hop_length
 max_len = int(frame_per_second * segment_duration)
 
-label_names = ['silent', 'neutral', 'noisy']
+label_names = ['neutral', 'non_noisy', 'noisy']
 label_map = {name: idx for idx, name in enumerate(label_names)}
 
 X, y, logs = [], [], []
@@ -121,9 +121,12 @@ max_len_class = max(len(v) for v in data_by_label.values())
 
 X_balanced, y_balanced = [], []
 for label, feats in data_by_label.items():
+    if len(feats) == 0:
+        print(f"⚠️ 클래스 '{label_names[label]}'에 유효한 샘플이 없습니다. 건너뜁니다.")
+        continue
     repeats = max_len_class // len(feats)
     remainder = max_len_class % len(feats)
-    
+
     # 데이터 복사 및 일부 랜덤 추가
     balanced_feats = feats * repeats + random.sample(feats, remainder)
     X_balanced.extend(balanced_feats)
@@ -131,7 +134,7 @@ for label, feats in data_by_label.items():
 
 # 📊 시각화: 오버샘플링 전후 클래스별 데이터 수 비교
 original_counts = {label_names[k]: len(v) for k, v in data_by_label.items()}
-oversampled_counts = {label_names[k]: max_len_class for k in data_by_label.keys()}
+oversampled_counts = {label_names[k]: max_len_class for k in data_by_label.keys() if len(data_by_label[k]) > 0}
 
 labels = list(original_counts.keys())
 x = range(len(labels))
@@ -152,7 +155,6 @@ plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "oversampling_visualization.png"))
 plt.show()
 
-
 # 저장
 os.makedirs(output_dir, exist_ok=True)
 np.save(os.path.join(output_dir, "X_lstm.npy"), np.array(X_balanced, dtype=np.float32))
@@ -165,4 +167,4 @@ print("✅ max_len:", max_len)
 print("✅ X shape:", np.array(X_balanced).shape)
 print("✅ y shape:", np.array(y_balanced).shape)
 print("📁 저장 완료:", output_dir)
-
+print("📁 시각화 저장 완료:", os.path.join(output_dir, "oversampling_visualization.png"))
