@@ -11,7 +11,7 @@ output_dir = 'hyochan/model_make_test/dataset/outputs/cnn_lstm'
 sr = 22050
 n_mfcc = 13
 hop_length = 512
-segment_duration = 1.0  # ✅ 이 값만 바꾸면 자동 계산됨
+segment_duration = 2.0  # ✅ 이 값만 바꾸면 자동 계산됨
 save_visuals = True
 
 # 🔢 max_len 자동 계산
