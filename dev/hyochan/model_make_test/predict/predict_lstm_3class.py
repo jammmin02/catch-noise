@@ -22,7 +22,7 @@ test_folder = "hyochan/model_make_test/test_audio_batch"
 save_dir = os.path.join(test_folder, "visuals")
 
 class_names = ['silent', 'neutral', 'noisy']
-class_colors = {'silent': 'skyblue', 'neutral': 'orange', 'noisy': 'tomato'}
+class_colors = {'non_noisy': 'skyblue', 'neutral': 'orange', 'noisy': 'tomato'}
 
 # 📥 Load model
 model = load_model(model_path)
