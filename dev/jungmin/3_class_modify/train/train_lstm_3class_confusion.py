@@ -79,7 +79,7 @@ print(f"✅ Model saved: {model_save_path}")
 
 # 📈 학습 그래프 시각화
 # Loss smoothing
-def smooth_curve(points, factor=0.8):
+def smooth_curve(points, factor=0.6):
     smoothed = []
     for point in points:
         if smoothed:
