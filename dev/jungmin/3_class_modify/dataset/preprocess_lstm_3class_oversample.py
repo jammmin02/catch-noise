@@ -101,12 +101,26 @@ for label_name in label_names:
             if save_visuals:
                 save_filename = f"{label_name}_{base_filename}_seg{i+1}_{log_entry['uuid']}.png"
                 save_path = os.path.join(output_dir, 'visuals', label_name, save_filename)
-                plt.figure(figsize=(10, 4))
-                plt.imshow(features, aspect='auto', origin='lower', cmap='coolwarm')
-                plt.title(save_filename)
-                plt.xlabel("Frame")
-                plt.ylabel("Feature Index (MFCC+ZCR)")
-                plt.colorbar()
+
+                fig, ax = plt.subplots(3, 1, figsize=(12, 10))
+
+                # 1️⃣ Waveform
+                librosa.display.waveshow(y_audio, sr=sr, ax=ax[0])
+                ax[0].set_title(f"Waveform - Segment {i+1}")
+                ax[0].set_xlabel("Time (s)")
+                ax[0].set_ylabel("Amplitude")
+
+                # 2️⃣ MFCC
+                img = librosa.display.specshow(mfcc, x_axis="time", sr=sr, hop_length=hop_length, ax=ax[1])
+                ax[1].set_title("MFCC")
+                fig.colorbar(img, ax=ax[1], format="%+2.f dB")
+
+                # 3️⃣ ZCR
+                ax[2].plot(np.linspace(0, segment_duration, zcr.shape[1]), zcr[0])
+                ax[2].set_title("Zero Crossing Rate")
+                ax[2].set_xlabel("Time (s)")
+                ax[2].set_ylabel("ZCR")
+
                 plt.tight_layout()
                 plt.savefig(save_path)
                 plt.close()
