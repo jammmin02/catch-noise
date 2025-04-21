@@ -1,3 +1,4 @@
+""
 import os
 import subprocess
 import uuid
@@ -5,29 +6,30 @@ import librosa
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 from collections import Counter
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, precision_recall_fscore_support
 from tensorflow.keras.models import load_model
+from matplotlib.patches import Patch
 
 # 🔧 Config
 sr = 22050
 n_mfcc = 13
 hop_length = 512
-segment_duration = 2.0
+segment_duration = 3.0
 frame_per_second = sr / hop_length
 max_len = int(frame_per_second * segment_duration)
 
-model_path = "hyochan/model_make_test/dataset/outputs/cnn_lstm/cnn_lstm_model.h5"
-test_folder = "hyochan/model_make_test/test_audio_batch"
+model_path = "dev/jungmin/3_class_modify/model/cnn_lstm_model.h5"
+test_folder = "dev/jungmin/test_audio_batch"
 save_dir = os.path.join(test_folder, "visuals")
 
-class_names = ['non_noisy', 'neutral', 'noisy']
-class_colors = {'non_noisy': 'skyblue', 'neutral': 'orange', 'noisy': 'tomato'}
+class_names = ['neutral', 'non_noisy', 'noisy']
+class_colors = {'neutral': 'orange', 'non_noisy': 'skyblue', 'noisy': 'tomato'}
 
 # 📥 Load model
 model = load_model(model_path)
 
-# 🎧 Convert to WAV if needed
 def convert_to_wav(file_path):
     ext = os.path.splitext(file_path)[1].lower()
     if ext == '.wav':
@@ -37,18 +39,23 @@ def convert_to_wav(file_path):
     subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return temp_wav
 
-# 🎛️ Feature extraction
+def cleanup_temp_files():
+    for file in os.listdir():
+        if file.startswith("temp_") and file.endswith(".wav"):
+            os.remove(file)
+
 def preprocess_segment(y_audio):
     mfcc = librosa.feature.mfcc(y=y_audio, sr=sr, n_mfcc=n_mfcc, hop_length=hop_length)
     zcr = librosa.feature.zero_crossing_rate(y=y_audio, hop_length=hop_length)
-    features = np.vstack([mfcc, zcr])
+    zcr_mean = np.mean(zcr)
+    zcr_feature = np.full((1, mfcc.shape[1]), zcr_mean)
+    features = np.vstack([mfcc, zcr_feature])
     if features.shape[1] < max_len:
         features = np.pad(features, ((0, 0), (0, max_len - features.shape[1])), mode='constant')
     else:
         features = features[:, :max_len]
-    return features.T[np.newaxis, ..., np.newaxis]  # (1, max_len, 14, 1)
+    return features.T[np.newaxis, ..., np.newaxis]
 
-# 🔍 Predict per segment
 def predict_file(file_path):
     y_full, _ = librosa.load(file_path, sr=sr)
     duration = librosa.get_duration(y=y_full, sr=sr)
@@ -59,6 +66,7 @@ def predict_file(file_path):
         end = int(min((i + 1) * segment_duration * sr, len(y_full)))
         segment = y_full[start:end]
         if len(segment) < sr:
+            print(f"⏩ Skipped short segment {i+1} in {file_path}")
             continue
         x = preprocess_segment(segment)
         pred = model.predict(x, verbose=0)[0]
@@ -67,34 +75,18 @@ def predict_file(file_path):
         results.append((f"seg{i+1}", pred, label))
     return results
 
-# 📊 Plot results
-def plot_results(results, true_labels, pred_labels):
-    if not results:
-        print("❗ No prediction results found.")
-        return
-
-    os.makedirs(save_dir, exist_ok=True)
-
-    # Accuracy
-    acc = accuracy_score(true_labels, pred_labels)
-    print(f"\n✅ Overall Accuracy: {acc * 100:.2f}% ({sum(np.array(true_labels)==np.array(pred_labels))}/{len(true_labels)})")
-
-    # Class count
-    pred_counts = Counter(pred_labels)
-    print("📊 Prediction counts:", dict(pred_counts))
-
-    # 🔁 Split into chunks of 100
+def plot_segment_bars(results, save_dir):
     def chunk_list(data, chunk_size=100):
         for i in range(0, len(data), chunk_size):
             yield data[i:i+chunk_size]
 
     results.sort(key=lambda x: np.max(x[1]), reverse=True)
 
-    # 🔄 For each chunk of 100 segments
     for idx, chunk in enumerate(chunk_list(results, 100), start=1):
         names = [x[0] for x in chunk]
         probs = [np.max(x[1]) for x in chunk]
         labels = [x[2] for x in chunk]
+        label_displays = [f"{label}{' *' if prob < 0.5 else ''}" for label, prob in zip(labels, probs)]
         colors = [class_colors[label] for label in labels]
 
         plt.figure(figsize=(14, max(5, len(names)*0.4)))
@@ -104,30 +96,70 @@ def plot_results(results, true_labels, pred_labels):
         plt.title(f"Segment Predictions (Part {idx})", fontsize=16)
         plt.xlim(0, 1)
         plt.gca().invert_yaxis()
-        for bar, prob, label in zip(bars, probs, labels):
+        for bar, prob, label in zip(bars, probs, label_displays):
             plt.text(prob + 0.01, bar.get_y() + bar.get_height()/2,
                      f"{prob:.2f} ({label})", va='center', fontsize=10)
+        legend_patches = [Patch(color=color, label=name) for name, color in class_colors.items()]
+        plt.legend(handles=legend_patches, title="Class", loc='lower right')
         plt.tight_layout()
         fname = os.path.join(save_dir, f"all_segments_result_{idx}.png")
         plt.savefig(fname)
-        plt.close()  # 💡 메모리 절약
+        plt.close()
 
-    # Confusion matrix
+def plot_confusion_matrix(true_labels, pred_labels, save_path):
     cm = confusion_matrix(true_labels, pred_labels, labels=class_names)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
     plt.figure(figsize=(5.5, 4.5))
     disp.plot(cmap='Blues', values_format='d')
     plt.title("Confusion Matrix (True vs Predicted)")
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, "confusion_matrix.png"))
+    plt.savefig(save_path)
     plt.close()
 
+def plot_class_metrics(true_labels, pred_labels, save_path):
+    precision, recall, f1, _ = precision_recall_fscore_support(true_labels, pred_labels, labels=class_names)
+    x = np.arange(len(class_names))
+    width = 0.3
+
+    plt.figure(figsize=(8, 5))
+    plt.bar(x - width, precision, width, label='Precision')
+    plt.bar(x, recall, width, label='Recall')
+    plt.bar(x + width, f1, width, label='F1 Score')
+    plt.xticks(x, class_names)
+    plt.ylim(0, 1)
+    plt.ylabel("Score")
+    plt.title("Per-Class Evaluation Metrics")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
+
+def save_prediction_table(true_labels, pred_labels, segment_names, save_path):
+    df = pd.DataFrame({
+        "Segment": segment_names,
+        "True Label": true_labels,
+        "Predicted": pred_labels
+    })
+    df["Correct"] = df["True Label"] == df["Predicted"]
+    df.to_csv(save_path, index=False)
+    print(f"📄 {save_path} saved")
+
+def print_performance_summary(true_labels, pred_labels):
+    acc = accuracy_score(true_labels, pred_labels)
+    precision, recall, f1, _ = precision_recall_fscore_support(true_labels, pred_labels, average='macro')
+    print("\n📊 Performance Summary")
+    print("-----------------------")
+    print(f"Accuracy : {acc:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall   : {recall:.4f}")
+    print(f"F1 Score : {f1:.4f}")
 
 # 🚀 Run predictions
 if __name__ == "__main__":
     results_all = []
     true_labels = []
     pred_labels = []
+    segment_names = []
 
     if not os.path.exists(test_folder):
         print(f"❗ Folder '{test_folder}' does not exist.")
@@ -136,17 +168,30 @@ if __name__ == "__main__":
             if not fname.lower().endswith(('.wav', '.mp4', '.m4a', '.mp3')):
                 continue
             fpath = os.path.join(test_folder, fname)
-            if not fname.endswith('.wav'):
+            if not fname.lower().endswith('.wav'):
                 fpath = convert_to_wav(fpath)
 
-            matched = [c for c in class_names if c in fname.lower()]
-            true_label = matched[0] if matched else "unknown"
-
+            true_label = next((c for c in class_names if fname.lower().startswith(c)), "unknown")
             results = predict_file(fpath)
+
             for r in results:
                 segment_name = f"{fname} - {r[0]}"
                 results_all.append((segment_name, r[1], r[2]))
                 true_labels.append(true_label)
                 pred_labels.append(r[2])
+                segment_names.append(segment_name)
 
-        plot_results(results_all, true_labels, pred_labels)
+        os.makedirs(save_dir, exist_ok=True)
+
+        print(f"\n✅ Overall Accuracy: {accuracy_score(true_labels, pred_labels) * 100:.2f}%")
+        print("📊 Prediction counts:", dict(Counter(pred_labels)))
+
+        plot_segment_bars(results_all, save_dir)
+        plot_confusion_matrix(true_labels, pred_labels, os.path.join(save_dir, "confusion_matrix.png"))
+        plot_class_metrics(true_labels, pred_labels, os.path.join(save_dir, "per_class_metrics.png"))
+        save_prediction_table(true_labels, pred_labels, segment_names, os.path.join(save_dir, "prediction_result_table.csv"))
+        print_performance_summary(true_labels, pred_labels)
+        cleanup_temp_files()
+
+        print("✅ All evaluation results saved.")
+    

@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 # 설정
 base_dir = 'data'  # 🎧 공통 오디오 폴더
-output_dir = 'outputs/cnn_lstm'
+output_dir = 'dev/jungmin/3_class/outputs/cnn_lstm'
 sr = 22050
 n_mfcc = 13
 hop_length = 512
