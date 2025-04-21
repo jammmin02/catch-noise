@@ -42,10 +42,10 @@ AI를 활용해 교실 소음을 실시간으로 분석하고, 학습을 방해�
         <a href="https://github.com/Azuking69" target="_blank">@Azuking69</a>
       </td>
       <td align="center">
-        <img src="https://github.com/lsh4358.png" width="100px;" alt="이승혁"/><br />
+        <img src="https://github.com/HSeung03.png" width="100px;" alt="이승혁"/><br />
         <sub><b>이승혁</b></sub><br />
         팀원<br />
-        <a href="https://github.com/lsh4358" target="_blank">@lsh4358</a>
+        <a href="https://github.com/HSeung03" target="_blank">@HSeung03</a>
       </td>
     </tr>
   </table>
