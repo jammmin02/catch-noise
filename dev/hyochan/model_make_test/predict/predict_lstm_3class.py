@@ -13,7 +13,7 @@ from tensorflow.keras.models import load_model
 sr = 22050
 n_mfcc = 13
 hop_length = 512
-segment_duration = 3.0
+segment_duration = 2.0
 frame_per_second = sr / hop_length
 max_len = int(frame_per_second * segment_duration)
 
@@ -21,8 +21,8 @@ model_path = "hyochan/model_make_test/dataset/outputs/cnn_lstm/cnn_lstm_model.h5
 test_folder = "hyochan/model_make_test/test_audio_batch"
 save_dir = os.path.join(test_folder, "visuals")
 
-class_names = ['silent', 'neutral', 'noisy']
-class_colors = {'silent': 'skyblue', 'neutral': 'orange', 'noisy': 'tomato'}
+class_names = ['non_noisy', 'neutral', 'noisy']
+class_colors = {'non_noisy': 'skyblue', 'neutral': 'orange', 'noisy': 'tomato'}
 
 # 📥 Load model
 model = load_model(model_path)
