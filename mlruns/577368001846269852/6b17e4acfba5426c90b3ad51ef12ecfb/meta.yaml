@@ -1,0 +1,15 @@
+artifact_uri: file:///app/mlruns/577368001846269852/6b17e4acfba5426c90b3ad51ef12ecfb/artifacts
+end_time: 1746514932534
+entry_point_name: ''
+experiment_id: '577368001846269852'
+lifecycle_stage: active
+run_id: 6b17e4acfba5426c90b3ad51ef12ecfb
+run_name: 3class_cnnlstm_test_v1
+run_uuid: 6b17e4acfba5426c90b3ad51ef12ecfb
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1746514932264
+status: 3
+tags: []
+user_id: root

@@ -14,6 +14,7 @@ set CONTAINER_NAME=noise-runner
 set DOCKERFILE=dev/jungmin/Docker/Dockerfile
 
 echo.
+<<<<<<< HEAD
 echo Building Docker image...
 docker build -t %IMAGE_NAME% -f %DOCKERFILE% %PROJECT_ROOT%
 
@@ -23,6 +24,17 @@ docker rm -f %CONTAINER_NAME% > nul 2>&1
 
 echo.
 echo Starting new container and launching bash shell...
+=======
+echo 📦 Building Docker image...
+docker build -t %IMAGE_NAME% -f %DOCKERFILE% %PROJECT_ROOT%
+
+echo.
+echo 🧼 Removing existing container (if any)...
+docker rm -f %CONTAINER_NAME% > nul 2>&1
+
+echo.
+echo 🐳 Starting new container and launching bash shell...
+>>>>>>> origin/main
 docker run --name %CONTAINER_NAME% -it --rm ^
 -v %PROJECT_ROOT%:/app ^
 -w /app ^

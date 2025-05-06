@@ -38,6 +38,10 @@ outputs/
 *.flac
 *.aac
 *.ogg
+<<<<<<< HEAD
+=======
+*.m4a
+>>>>>>> origin/main
 
 # ▶️ 이미지 파일 (데이터 시각화 / 입력 이미지 등)
 *.png
