@@ -15,7 +15,7 @@ output_dir = 'dev/jungmin/2class_noisy_vs_nonnoisy/outputs/cnn_lstm'
 sr = 22050
 n_mfcc = 13
 hop_length = 512
-segment_duration = 3.0
+segment_duration = 2.0  # 🔄 변경됨
 save_visuals = True
 
 frame_per_second = sr / hop_length
@@ -108,49 +108,59 @@ for label_name in label_names:
                 save_filename = f"{label_name}_{base_filename}_seg{i+1}_{log_entry['uuid']}.png"
                 save_path = os.path.join(output_dir, 'visuals', label_name, save_filename)
 
-                fig, ax = plt.subplots(3, 1, figsize=(12, 10))
+                try:
+                    fig, ax = plt.subplots(3, 1, figsize=(12, 10))
 
-                librosa.display.waveshow(y_audio, sr=sr, ax=ax[0])
-                ax[0].set_title(f"Waveform - Segment {i+1}")
-                ax[0].set_xlabel("Time (s)")
-                ax[0].set_ylabel("Amplitude")
+                    # ✅ waveform 직접 그리기
+                    t = np.linspace(0, len(y_audio)/sr, len(y_audio))
+                    ax[0].plot(t, y_audio, color='steelblue')
+                    ax[0].set_title(f"Waveform - Segment {i+1}")
+                    ax[0].set_xlabel("Time (s)")
+                    ax[0].set_ylabel("Amplitude")
 
-                img = librosa.display.specshow(mfcc, x_axis="time", sr=sr, hop_length=hop_length, ax=ax[1])
-                ax[1].set_title("MFCC")
-                fig.colorbar(img, ax=ax[1], format="%+2.f dB")
+                    # ✅ MFCC
+                    img = librosa.display.specshow(mfcc, x_axis="time", sr=sr, hop_length=hop_length, ax=ax[1])
+                    ax[1].set_title("MFCC")
+                    fig.colorbar(img, ax=ax[1], format="%+2.f dB")
 
-                ax[2].plot(np.linspace(0, segment_duration, zcr.shape[1]), zcr[0])
-                ax[2].set_title("Zero Crossing Rate")
-                ax[2].set_xlabel("Time (s)")
-                ax[2].set_ylabel("ZCR")
+                    # ✅ ZCR
+                    ax[2].plot(np.linspace(0, segment_duration, zcr.shape[1]), zcr[0], color='darkgreen')
+                    ax[2].set_title("Zero Crossing Rate")
+                    ax[2].set_xlabel("Time (s)")
+                    ax[2].set_ylabel("ZCR")
 
-                plt.tight_layout()
-                plt.savefig(save_path)
-                plt.close()
-                print(f"🖼️ 시각화 저장: {save_path}")
+                    plt.tight_layout()
+                    plt.savefig(save_path)
+                    plt.close()
+                    print(f"🖼️ 시각화 저장: {save_path}")
+                except Exception as e:
+                    print(f"❗ 시각화 오류 발생 (세그먼트 {i+1}): {e}")
 
-# 🎯 오버샘플링
+# 🎯 오버샘플링 (클래스별 평균 수로 맞추기)
 print("📊 클래스 균형 맞추는 중...")
 data_by_label = {i: [] for i in range(len(label_names))}
 for feat, lab in zip(X, y):
     data_by_label[lab].append(feat)
 
-max_len_class = max(len(v) for v in data_by_label.values())
+mean_len_class = int(np.mean([len(v) for v in data_by_label.values()]))
 
 X_balanced, y_balanced = [], []
 for label, feats in data_by_label.items():
     if len(feats) == 0:
         print(f"⚠️ 클래스 '{label_names[label]}'에 유효한 샘플이 없습니다. 건너뜁니다.")
         continue
-    repeats = max_len_class // len(feats)
-    remainder = max_len_class % len(feats)
-    balanced_feats = feats * repeats + random.sample(feats, remainder)
-    X_balanced.extend(balanced_feats)
-    y_balanced.extend([label] * max_len_class)
+    if len(feats) >= mean_len_class:
+        selected_feats = random.sample(feats, mean_len_class)
+    else:
+        repeats = mean_len_class // len(feats)
+        remainder = mean_len_class % len(feats)
+        selected_feats = feats * repeats + random.sample(feats, remainder)
+    X_balanced.extend(selected_feats)
+    y_balanced.extend([label] * mean_len_class)
 
-# 시각화
+# 시각화: 오버샘플링 결과
 original_counts = {label_names[k]: len(v) for k, v in data_by_label.items()}
-oversampled_counts = {label_names[k]: max_len_class for k in data_by_label.keys() if len(data_by_label[k]) > 0}
+oversampled_counts = {label_names[k]: mean_len_class for k in data_by_label.keys() if len(data_by_label[k]) > 0}
 
 labels = list(original_counts.keys())
 x = range(len(labels))
@@ -166,7 +176,6 @@ ax.set_xticks(x)
 ax.set_xticklabels(labels)
 ax.legend()
 plt.tight_layout()
-
 plt.savefig(os.path.join(output_dir, "oversampling_visualization.png"))
 plt.show()
 
