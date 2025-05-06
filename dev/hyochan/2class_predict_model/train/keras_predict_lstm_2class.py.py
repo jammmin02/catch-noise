@@ -3,21 +3,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Reshape, LSTM, Dense, Dropout
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Reshape, LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
 
 # 🔧 경로 설정
-base_dir = "hyochan/model_make_test/dataset/outputs/cnn_lstm"
+base_dir = "C:/Users/USER/.aCode/catch-noise/dev/hyochan/2class_predict_model/dataset/outputs/cnn_lstm"  # 2-class 폴더
 X_path = os.path.join(base_dir, "X_lstm.npy")
 y_path = os.path.join(base_dir, "y_lstm.npy")
-model_save_path = os.path.join(base_dir, "cnn_lstm_model.h5")
-plot_save_path = os.path.join(base_dir, "train_history_3class_segment3s.png")
+model_save_path = os.path.join(base_dir, "cnn_lstm_model.keras")  # ✅ keras 형식
+plot_save_path = os.path.join(base_dir, "train_history_2class_segment2s.png")
 
 # 📥 데이터 로드
-X = np.load(X_path)  # (샘플 수, max_len, 14)
+X = np.load(X_path)
 y = np.load(y_path)
 print(f"✅ Data loaded: X shape = {X.shape}, y shape = {y.shape}")
-print(f"🧾 Label distribution: {np.bincount(y)}")  # 클래스 분포 확인
+print(f"🧾 Label distribution: {np.bincount(y)}")
 
 # 📐 CNN 입력 형태로 reshape
 X = X[..., np.newaxis]  # (샘플 수, max_len, 14, 1)
@@ -32,19 +32,20 @@ X_train, X_val, y_train, y_val = train_test_split(
 
 print(f"📊 Split sizes → Train: {X_train.shape[0]}, Val: {X_val.shape[0]}, Test: {X_test.shape[0]}")
 
-# 🧠 모델 정의 (3-class + softmax)
+# 🧠 모델 정의 (2-class + softmax)
 model = Sequential([
-    Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(X.shape[1], X.shape[2], 1)),
+    Input(shape=(X.shape[1], X.shape[2], 1)),  # ✅ input 분리
+    Conv2D(32, (3, 3), activation='relu', padding='same'),
     MaxPooling2D((2, 2)),
 
     Conv2D(64, (3, 3), activation='relu', padding='same'),
     MaxPooling2D((2, 2)),
 
-    Reshape((X.shape[1] // 4, -1)),  # 두 번 MaxPooling → 시간축 1/4
+    Reshape((X.shape[1] // 4, -1)),
     LSTM(64),
     Dense(64, activation='relu'),
     Dropout(0.3),
-    Dense(3, activation='softmax')  # ✅ 3 클래스!
+    Dense(2, activation='softmax')  # ✅ 2-class
 ])
 
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
@@ -66,7 +67,7 @@ history = model.fit(
 test_loss, test_acc = model.evaluate(X_test, y_test)
 print(f"🧪 Test Accuracy: {test_acc:.4f}, Loss: {test_loss:.4f}")
 
-# 💾 모델 저장
+# 💾 모델 저장 (.keras로 저장 권장)
 model.save(model_save_path)
 print(f"✅ Model saved: {model_save_path}")
 
