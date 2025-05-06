@@ -65,5 +65,5 @@ Thumbs.db
 # ▶️ Git 백업 충돌
 *.orig
 
-# ▶️ MLflow 실험 기록 폴더
+# ▶️ MLflow 실험 기록 폴더 제외
 mlruns/
