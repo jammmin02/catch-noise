@@ -1,4 +1,4 @@
-# ✅ TensorFlow 2.13.0 기반 이미지
+# ✅ TensorFlow 2.13.0 기반 이미지 (GPU 필요 없으면 cpu 버전도 가능)
 FROM tensorflow/tensorflow:2.13.0
 
 # ✅ 시스템 패키지 설치 (ffmpeg 포함)
