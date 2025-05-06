@@ -38,6 +38,7 @@ outputs/
 *.flac
 *.aac
 *.ogg
+*.m4a
 
 # ▶️ 이미지 파일 (데이터 시각화 / 입력 이미지 등)
 *.png
