@@ -1,3 +1,6 @@
+# ✅ 환경 변수 설정 파일 (.env는 GitHub에 올리지 않도록!)
+.env
+
 # ▶️ Python 관련
 __pycache__/
 *.py[cod]
