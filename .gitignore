@@ -38,10 +38,6 @@ outputs/
 *.flac
 *.aac
 *.ogg
-<<<<<<< HEAD
-=======
-*.m4a
->>>>>>> origin/main
 
 # ▶️ 이미지 파일 (데이터 시각화 / 입력 이미지 등)
 *.png
@@ -68,5 +64,5 @@ Thumbs.db
 # ▶️ Git 백업 충돌
 *.orig
 
-# ▶️ MLflow 실험 기록 폴더
+# ▶️ MLflow 실험 기록 폴더 제외
 mlruns/
