@@ -21,7 +21,7 @@ mlflow.set_tracking_uri("http://210.101.236.174:5000")
 mlflow.set_experiment(experiment_name)
 
 with mlflow.start_run():
-    base_dir = "dev/hyochan/2class_predict_model/dataset/outputs/cnn_lstm"
+    base_dir = "C:/Users/USER/.aCode/catch-noise/dev/hyochan/2class_predict_model/dataset/outputs/cnn_lstm"
     os.makedirs(base_dir, exist_ok=True)
 
     # 📁 파일 경로
