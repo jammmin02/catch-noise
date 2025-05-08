@@ -6,7 +6,53 @@ AI를 활용해 교실 소음을 실시간으로 분석하고, 학습을 방해�
 
 <br>
 
-## 📂 REPOSITORY 구조도
+## 👥 팀원 소개
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="https://github.com/jammmin02.png" width="100px;" alt="박정민"/><br />
+        <sub><b>박정민</b></sub><br />
+        팀장<br />
+        <a href="https://github.com/jammmin02" target="_blank">@jammmin02</a>
+      </td>
+      <td align="center">
+        <img src="https://github.com/HyoChan1117.png" width="100px;" alt="김효찬"/><br />
+        <sub><b>김효찬</b></sub><br />
+        팀원<br />
+        <a href="https://github.com/HyoChan1117" target="_blank">@HyoChan1117</a>
+      </td>
+      <td align="center">
+        <img src="https://github.com/youngmin109.png" width="100px;" alt="배영민"/><br />
+        <sub><b>배영민</b></sub><br />
+        팀원<br />
+        <a href="https://github.com/youngmin109" target="_blank">@youngmin109</a>
+      </td>
+      <td align="center">
+        <img src="https://github.com/gould7789.png" width="100px;" alt="이현우"/><br />
+        <sub><b>이현우</b></sub><br />
+        팀원<br />
+        <a href="https://github.com/gould7789" target="_blank">@gould7789</a>
+      </td>
+      <td align="center">
+        <img src="https://github.com/Azuking69.png" width="100px;" alt="아즈키"/><br />
+        <sub><b>아즈키</b></sub><br />
+        팀원<br />
+        <a href="https://github.com/Azuking69" target="_blank">@Azuking69</a>
+      </td>
+      <td align="center">
+        <img src="https://github.com/HSeung03.png" width="100px;" alt="이승혁"/><br />
+        <sub><b>이승혁</b></sub><br />
+        팀원<br />
+        <a href="https://github.com/HSeung03" target="_blank">@HSeung03</a>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<br>
+## 📂 REPOSITORY 구 조 도
 
 <img src="https://github.com/HyoChan1117/HyoChan1117/raw/master/team_project-structure.drawio.png" alt="Project Structure" width="80%">
 

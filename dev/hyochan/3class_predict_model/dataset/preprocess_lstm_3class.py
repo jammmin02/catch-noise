@@ -6,12 +6,12 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 # 설정
-base_dir = 'data'  # 🎧 공통 오디오 폴더
-output_dir = 'dev/jungmin/3_class/outputs/cnn_lstm'
+base_dir = 'hyochan/model_make_test/data'  # 🎧 공통 오디오 폴더
+output_dir = 'hyochan/model_make_test/dataset/outputs/cnn_lstm'
 sr = 22050
 n_mfcc = 13
 hop_length = 512
-segment_duration = 3.0  # ✅ 이 값만 바꾸면 자동 계산됨
+segment_duration = 2.0  # ✅ 이 값만 바꾸면 자동 계산됨
 save_visuals = True
 
 # 🔢 max_len 자동 계산
@@ -20,7 +20,7 @@ max_len = int(frame_per_second * segment_duration)
 
 X, y = [], []
 
-label_names = ['silent', 'neutral', 'noisy']
+label_names = ['non_noisy', 'neutral', 'noisy']
 label_map = {name: idx for idx, name in enumerate(label_names)}
 
 def convert_to_wav(src_path, dst_path):

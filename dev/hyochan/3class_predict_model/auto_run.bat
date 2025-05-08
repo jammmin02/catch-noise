@@ -1,5 +1,5 @@
 @echo off
-REM 💡 현재 경로: dev/jungmin/Docker
+REM 💡 현재 경로: dev/hyochan/Docker
 cd /d %~dp0
 
 REM 🔼 두 단계 위로 올라가서 루트 폴더로 이동
@@ -11,7 +11,7 @@ set PROJECT_ROOT=%cd%
 REM ✅ Docker 관련 설정
 set IMAGE_NAME=tf-noise-preprocess
 set CONTAINER_NAME=noise-runner
-set DOCKERFILE=dev/jungmin/Docker/Dockerfile
+set DOCKERFILE=dev/hyochan/Docker/Dockerfile
 
 echo.
 echo 📦 Building Docker image...

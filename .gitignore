@@ -1,3 +1,6 @@
+# ✅ 환경 변수 설정 파일 (.env는 GitHub에 올리지 않도록!)
+.env
+
 # ▶️ Python 관련
 __pycache__/
 *.py[cod]
@@ -38,6 +41,7 @@ outputs/
 *.flac
 *.aac
 *.ogg
+*.m4a
 
 # ▶️ 이미지 파일 (데이터 시각화 / 입력 이미지 등)
 *.png
@@ -63,3 +67,6 @@ Thumbs.db
 
 # ▶️ Git 백업 충돌
 *.orig
+
+# ▶️ MLflow 실험 기록 폴더 제외
+mlruns/
