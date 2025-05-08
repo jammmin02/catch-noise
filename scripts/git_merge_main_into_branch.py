@@ -25,7 +25,7 @@ def merge(from_branch):
 
     if result.returncode != 0:
         print("❌ 충돌이 발생했습니다!")
-        print("🔧 수동으로 충돌을 해결하고, 직접 'git merge --continue'를 실행해주세요.")
+        print(" 수동으로 충돌을 해결하고, 직접 'git merge --continue'를 실행해주세요.")
         exit(1)  # 병합 실패 시 스크립트 종료
     else:
         print(" 병합 성공! 자동 커밋 진행 중...")
