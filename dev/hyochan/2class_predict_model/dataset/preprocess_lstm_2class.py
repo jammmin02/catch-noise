@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 # 설정
-base_dir = 'hyochan/2class_predict_model/data'
-output_dir = 'hyochan/2class_predict_model/dataset/outputs/cnn_lstm'
+base_dir = 'hyochan/model_make_test/data'
+output_dir = 'hyochan/model_make_test/dataset/outputs/cnn_lstm'
 sr = 22050
 n_mfcc = 13
 hop_length = 512

@@ -7,18 +7,19 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Reshape, LSTM, Dense, 
 from tensorflow.keras.callbacks import EarlyStopping
 
 # 🔧 경로 설정
-base_dir = "dev/jungmin/3class_binaryview/outputs"
-X_path = os.path.join(base_dir, "X_lstm_bview.npy")
-y_path = os.path.join(base_dir, "y_lstm_bview.npy")
-model_save_path = os.path.join(base_dir, "cnn_lstm_bview_model.h5")
-plot_save_path = os.path.join(base_dir, "train_history_3class_bview_segment3s.png")
+base_dir = "hyochan/model_make_test/dataset/outputs/cnn_lstm"
+X_path = os.path.join(base_dir, "X_lstm.npy")
+y_path = os.path.join(base_dir, "y_lstm.npy")
+model_save_path = os.path.join(base_dir, "cnn_lstm_model.h5")
+plot_save_path = os.path.join(base_dir, "train_history_3class_segment3s.png")
 
 # 📥 데이터 로드
-X = np.load(X_path)
+X = np.load(X_path)  # (샘플 수, max_len, 14)
 y = np.load(y_path)
 print(f"✅ Data loaded: X shape = {X.shape}, y shape = {y.shape}")
-print(f"🧾 Label distribution: {np.bincount(y)}")
+print(f"🧾 Label distribution: {np.bincount(y)}")  # 클래스 분포 확인
 
+# 📐 CNN 입력 형태로 reshape
 X = X[..., np.newaxis]  # (샘플 수, max_len, 14, 1)
 
 # 📊 데이터셋 분할 (7:2:1)
@@ -31,7 +32,7 @@ X_train, X_val, y_train, y_val = train_test_split(
 
 print(f"📊 Split sizes → Train: {X_train.shape[0]}, Val: {X_val.shape[0]}, Test: {X_test.shape[0]}")
 
-# 🧠 모델 정의
+# 🧠 모델 정의 (3-class + softmax)
 model = Sequential([
     Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(X.shape[1], X.shape[2], 1)),
     MaxPooling2D((2, 2)),
@@ -39,11 +40,11 @@ model = Sequential([
     Conv2D(64, (3, 3), activation='relu', padding='same'),
     MaxPooling2D((2, 2)),
 
-    Reshape((X.shape[1] // 4, -1)),
+    Reshape((X.shape[1] // 4, -1)),  # 두 번 MaxPooling → 시간축 1/4
     LSTM(64),
     Dense(64, activation='relu'),
     Dropout(0.3),
-    Dense(3, activation='softmax')
+    Dense(3, activation='softmax')  # ✅ 3 클래스!
 ])
 
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
@@ -72,6 +73,7 @@ print(f"✅ Model saved: {model_save_path}")
 # 📈 학습 그래프 저장 및 출력
 plt.figure(figsize=(12, 5))
 
+# Accuracy 그래프
 plt.subplot(1, 2, 1)
 plt.plot(history.history['accuracy'], label='Train Acc', marker='o')
 plt.plot(history.history['val_accuracy'], label='Val Acc', marker='x')
@@ -81,6 +83,7 @@ plt.ylabel('Accuracy')
 plt.legend()
 plt.grid(True)
 
+# Loss 그래프
 plt.subplot(1, 2, 2)
 plt.plot(history.history['loss'], label='Train Loss', marker='o')
 plt.plot(history.history['val_loss'], label='Val Loss', marker='x')

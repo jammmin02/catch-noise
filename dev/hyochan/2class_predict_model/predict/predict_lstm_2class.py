@@ -14,7 +14,7 @@ max_len = int(frame_per_second * segment_duration)
 
 # ✅ 2-class 설정
 class_names = ['non_noisy', 'noisy']
-model_path = "hyochan/2class_predict_model/dataset/outputs/cnn_lstm/cnn_lstm_model.h5"
+model_path = "hyochan/model_make_test/dataset/outputs/cnn_lstm/cnn_lstm_model.h5"
 
 # ✅ 모델 로딩
 model = load_model(model_path)
