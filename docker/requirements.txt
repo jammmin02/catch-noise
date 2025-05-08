@@ -1,12 +1,30 @@
-librosa==0.10.0
+# PyTorch 학습용
+torch>=1.10
+torchvision
+torchaudio
+
+# 전처리 / 학습 보조
 numpy>=1.23
 pandas
+scikit-learn
+tqdm
+
+# 시각화
 matplotlib
+seaborn
+
+# 오디오 처리
+librosa==0.10.0
+soundfile
+numba==0.56.4
+
+# 이미지/영상 처리
 imageio
 imageio-ffmpeg
-scikit-learn
-tensorflow==2.13.0
-seaborn
-soundfile
-tqdm
+
+# 실험 추적 / 튜닝
 mlflow
+optuna
+
+# ONNX 변환
+onnx
