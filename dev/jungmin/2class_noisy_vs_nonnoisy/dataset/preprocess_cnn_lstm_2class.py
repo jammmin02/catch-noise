@@ -9,13 +9,13 @@ import random
 import uuid
 import librosa.display
 
-# 설정
+# 설정  
 base_dir = 'data'
 output_dir = 'dev/jungmin/2class_noisy_vs_nonnoisy/outputs/cnn_lstm'
 sr = 22050
 n_mfcc = 13
 hop_length = 512
-segment_duration = 2.0  # 🔄 변경됨
+segment_duration = 2.0  
 save_visuals = True
 
 frame_per_second = sr / hop_length
