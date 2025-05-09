@@ -1,0 +1,28 @@
+# 주요 버전 호환: Python 3.6.9 + PyTorch 환경 기준
+
+# 오디오 처리
+librosa==0.8.1           # 0.10.0은 Python 3.7 이상 필요
+soundfile==0.10.3.post1  # librosa 0.8.1과 호환
+
+# 데이터 및 수학 연산
+numpy>=1.19.5,<1.23      # 1.23 이상은 Python 3.7+에서만 지원
+pandas==1.1.5            # Python 3.6 지원 마지막 버전
+scikit-learn==0.24.2     # Python 3.6 지원 마지막 버전
+
+# 시각화
+matplotlib==3.3.4        # Python 3.6 호환
+seaborn==0.11.2
+
+# 영상 처리
+imageio==2.9.0
+imageio-ffmpeg==0.4.3
+
+# tqdm 진행 표시줄
+tqdm==4.64.1
+
+# PyTorch
+torch==1.10.0            # Python 3.6 최종 지원 버전
+torchvision==0.11.1
+
+# MLflow
+mlflow==1.20.2           # 이 버전까지는 Python 3.6 호환 가능
