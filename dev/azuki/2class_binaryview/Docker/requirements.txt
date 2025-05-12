@@ -1,0 +1,9 @@
+librosa
+numpy
+pandas
+matplotlib
+imageio
+imageio-ffmpeg
+scikit-learn
+tensorflow==2.13.0
+seaborn
