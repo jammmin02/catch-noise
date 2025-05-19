@@ -1,53 +1,59 @@
 @echo off
-REM 프로젝트 루트 경로 직접 설정 
-set PROJECT_ROOT=C:\Users\USER\team-noise-ai-project
-set PROJECT_ROOT_UNIX=C:/Users/USER/team-noise-ai-project
-SET CONTAINER_NAME=noise-jetson
-SET IMAGE_NAME=jetson-audio-rt
-SET DOCKERFILE_PATH=docker
-SET MLFLOW_TRACKING_URI=http://210.101.236.174:5000
+setlocal enabledelayedexpansion
 
-REM [이미지 존재 여부 확인]
+:: 경로 및 환경 변수 설정
+set PROJECT_ROOT=%cd%
+set CONTAINER_NAME=noise-jetson
+set IMAGE_NAME=jetson-audio-rt
+set DOCKERFILE_PATH=docker
+set MLFLOW_TRACKING_URI=http://210.101.236.174:5000
+
+:: Docker 이미지 확인 및 빌드
 docker image inspect %IMAGE_NAME% >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
-    echo Docker image not found. Building image...
+    echo [INFO] Docker image not found. Building image...
     docker build -t %IMAGE_NAME% %DOCKERFILE_PATH%
 ) ELSE (
-    echo Docker image already exists.
+    echo [INFO] Docker image already exists.
 )
 
-REM [컨테이너 존재 여부 확인]
+:: 컨테이너 확인 및 생성 (❗ bash만 실행)
 docker inspect %CONTAINER_NAME% >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
-    echo Container not found. Creating new container...
-
-    REM 컨테이너가 없으면 새로 생성하고 백그라운드로 실행
+    echo [INFO] Container not found. Creating new container...
     docker run -it -d --name %CONTAINER_NAME% ^
         --runtime nvidia ^
-        --net=host ^
         --device /dev/snd ^
         --device /dev/input ^
         --privileged ^
         -e MLFLOW_TRACKING_URI=%MLFLOW_TRACKING_URI% ^
-        -v "%cd%":/app ^
+        -v "%PROJECT_ROOT%":/app ^
         -w /app ^
-        %IMAGE_NAME%
+        -p 5000:5000 ^
+        %IMAGE_NAME% bash
 ) ELSE (
-    echo Container already exists.
-
-    REM [컨테이너 실행 중인지 확인]
-    docker inspect -f "{{.State.Running}}" %CONTAINER_NAME% | findstr "true" >nul
-    IF %ERRORLEVEL% NEQ 0 (
-        echo Container is stopped. Starting it now...
-        docker start %CONTAINER_NAME%
-    ) ELSE (
-        echo Container is already running.
-    )
+    echo [INFO] Container already exists.
 )
 
-REM [bash 셸 자동 진입]
-echo Launching bash shell...
-docker exec -it %CONTAINER_NAME% bash
+:: 컨테이너 실행 상태 확인
+docker inspect -f "{{.State.Running}}" %CONTAINER_NAME% | findstr "true" >nul
+IF %ERRORLEVEL% NEQ 0 (
+    echo [INFO] Container is stopped. Starting it now...
+    docker start %CONTAINER_NAME%
+) ELSE (
+    echo [INFO] Container is already running.
+)
 
-REM 창이 꺼지지 않도록 대기
-pause
+:: MLflow 중복 실행 방지
+echo [INFO] Checking MLflow process...
+docker exec %CONTAINER_NAME% pgrep -f "mlflow server" >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 (
+    echo [INFO] MLflow not running. Starting MLflow...
+    docker exec -d %CONTAINER_NAME% bash -c "mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri file:///app/mlruns --default-artifact-root file:///app/mlartifacts"
+) ELSE (
+    echo [INFO] MLflow is already running.
+)
+
+:: bash 쉘 접속
+echo [INFO] Connecting to container shell...
+docker exec -it %CONTAINER_NAME% bash

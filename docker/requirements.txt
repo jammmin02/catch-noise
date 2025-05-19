@@ -19,7 +19,6 @@ pyqtgraph
 
 # 모델 포맷 및 추론
 onnx
-tensorrt
 
 # 로그 추적
 mlflow
