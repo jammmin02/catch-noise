@@ -48,3 +48,6 @@ IF %ERRORLEVEL% NEQ 0 (
 REM [bash 셸 자동 진입]
 echo Launching bash shell...
 docker exec -it %CONTAINER_NAME% bash
+
+REM 창이 꺼지지 않도록 대기
+pause
