@@ -1,30 +1,33 @@
-# PyTorch 학습용
-torch>=1.10
-torchvision
-torchaudio
+# PyTorch 및 관련
+torch==1.9.0
+torchvision==0.10.0
+Pillow
+Cython<3
 
-# 전처리 / 학습 보조
-numpy>=1.23
-pandas
-scikit-learn
-tqdm
+# 오디오 처리
+librosa==0.9.2
+soundfile
+pyaudio
+scipy
+sounddevice
 
 # 시각화
 matplotlib
 seaborn
+pyqt5
+pyqtgraph
 
-# 오디오 처리
-librosa==0.10.0
-soundfile
-numba==0.56.4
+# 모델 포맷 및 추론
+onnx
+tensorrt
 
-# 이미지/영상 처리
-imageio
-imageio-ffmpeg
-
-# 실험 추적 / 튜닝
+# 로그 추적
 mlflow
+
+# 실험 최적화
 optuna
 
-# ONNX 변환
-onnx
+# 기타 유틸
+tqdm
+pandas
+opencv-python
