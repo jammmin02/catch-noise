@@ -1,23 +1,32 @@
 # -*- coding: utf-8 -*-
-
 import sounddevice as sd
 import librosa
 import numpy as np
 import matplotlib.pyplot as plt
-from tensorflow.keras.models import load_model
 import threading
 import time
+import tensorrt as trt
+import pycuda.driver as cuda
+import pycuda.autoinit  # 메인 스레드에서 context 자동 생성
 
 # === 설정 ===
-mic_sr = 44100                # 마이크 입력 샘플레이트
-model_sr = 22050              # 모델 학습 시 사용된 샘플레이트
-segment_duration = 2.0        # 입력 세그먼트 길이 (초)
+mic_sr = 44100
+model_sr = 22050
+segment_duration = 2.0
 n_mfcc = 13
 hop_length = 512
-max_len = 86                  # 모델 입력 프레임 수
+max_len = 86
 class_names = ['non_noisy', 'noisy']
-model_path = "hyochan/jetson_predict/cnn_lstm_model.keras"
-model = load_model(model_path)
+engine_path = "hyochan/jetson_predict/cnn_lstm_model.trt"
+
+# === TensorRT 엔진 로드 ===
+TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+with open(engine_path, "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
+    engine = runtime.deserialize_cuda_engine(f.read())
+
+input_shape = (1, 86, 14, 1)
+input_nbytes = np.prod(input_shape) * np.float32().nbytes
+output_nbytes = 1 * np.float32().nbytes  # 시그모이드 출력 1개
 
 # === 마이크 장치 자동 탐색 ===
 def find_input_device(name_keyword="usb"):
@@ -29,7 +38,7 @@ def find_input_device(name_keyword="usb"):
 
 device_index, device_channels = find_input_device("usb")
 
-# === 실시간 변수 초기화 ===
+# === 실시간 변수 ===
 rolling_audio = np.zeros(int(mic_sr * segment_duration), dtype=np.float32)
 latest_pred = np.array([0.5, 0.5])
 latest_label = "non_noisy"
@@ -50,27 +59,19 @@ ax2.set_ylim(-1, 1)
 ax2.set_title("Real-time microphone input")
 ax2.set_xlabel("Sample")
 ax2.set_ylabel("Amplitude")
-
 plt.tight_layout()
 plt.show(block=False)
 
-# === 특징 추출 함수 (리샘플링 포함) ===
+# === 특징 추출 ===
 def extract_features(y_audio):
-    # 1. 리샘플링: 44100 → 22050
     y_audio = librosa.resample(y_audio, orig_sr=mic_sr, target_sr=model_sr)
-
-    # 2. MFCC + ZCR 추출
     mfcc = librosa.feature.mfcc(y=y_audio, sr=model_sr, n_mfcc=n_mfcc, hop_length=hop_length)
     zcr = librosa.feature.zero_crossing_rate(y=y_audio, hop_length=hop_length)
-    features = np.vstack([mfcc, zcr])  # (14, time)
-
-    # 3. 입력 크기 정규화
+    features = np.vstack([mfcc, zcr])
     if features.shape[1] < max_len:
         features = np.pad(features, ((0, 0), (0, max_len - features.shape[1])), mode='constant')
     else:
         features = features[:, :max_len]
-
-    # 4. reshape to (1, 86, 14, 1)
     return features.T[np.newaxis, ..., np.newaxis].astype(np.float32)
 
 # === 마이크 콜백 ===
@@ -80,33 +81,56 @@ def audio_callback(indata, frames, time_info, status):
     rolling_audio = np.roll(rolling_audio, -len(mono_input))
     rolling_audio[-len(mono_input):] = mono_input
 
+# === TensorRT 예측 함수 ===
+def predict_with_trt(input_array):
+    input_array = input_array.astype(np.float32).ravel()
+    output_array = np.empty((1,), dtype=np.float32)
+
+    context = engine.create_execution_context()
+    stream = cuda.Stream()
+    d_input = cuda.mem_alloc(int(input_nbytes))
+    d_output = cuda.mem_alloc(int(output_nbytes))
+    bindings = [int(d_input), int(d_output)]
+
+    cuda.memcpy_htod_async(d_input, input_array, stream)
+    context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
+    cuda.memcpy_dtoh_async(output_array, d_output, stream)
+    stream.synchronize()
+
+    return output_array
+
 # === 예측 쓰레드 ===
 def predict_thread():
     global rolling_audio, latest_pred, latest_label, latest_confidence
     segment_len = int(mic_sr * segment_duration)
+    ctx = pycuda.autoinit.context
+    ctx.push()  # context push
 
-    while True:
-        time.sleep(1.0)  # 1초마다 추론
-        audio_seg = rolling_audio[-segment_len:]
-        x = extract_features(audio_seg)
-        pred = model.predict(x, verbose=0)[0]  # (2,)
-        p = float(pred[0])
-        latest_pred = np.array([1 - p, p])
-        label_idx = int(p > 0.5)
-        latest_label = class_names[label_idx]
-        latest_confidence = latest_pred[label_idx]
-        print(f"\nPrediction: [{latest_label}] (Confidence: {latest_confidence:.2f})")
+    try:
+        while True:
+            time.sleep(1.0)
+            audio_seg = rolling_audio[-segment_len:]
+            x = extract_features(audio_seg)
+            pred = predict_with_trt(x)
+            p = float(pred[0])  # sigmoid 1개
+            latest_pred = np.array([1 - p, p])
+            label_idx = int(p > 0.5)
+            latest_label = class_names[label_idx]
+            latest_confidence = latest_pred[label_idx]
+            print(f"\nPrediction: [{latest_label}] (Confidence: {latest_confidence:.2f})")
+    finally:
+        ctx.pop()  # context pop
 
 # === 마이크 스트리밍 시작 ===
-print(" Real-time prediction started. Press Ctrl+C to stop.")
-stream = sd.InputStream(
+print("Real-time prediction started. Press Ctrl+C to stop.")
+audio_stream = sd.InputStream(
     device=device_index,
     callback=audio_callback,
     channels=1,
     samplerate=mic_sr,
     blocksize=int(mic_sr * 0.05)
 )
-stream.start()
+audio_stream.start()
 
 threading.Thread(target=predict_thread, daemon=True).start()
 
@@ -122,7 +146,7 @@ try:
         time.sleep(0.05)
 
 except KeyboardInterrupt:
-    print("\n Terminated by user.")
-    stream.stop()
+    print("\nTerminated by user.")
+    audio_stream.stop()
     plt.ioff()
     plt.close()
