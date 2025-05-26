@@ -1,0 +1,13 @@
+# Docker/requirements.txt
+
+# Jetson에서는 torch를 .whl로 설치할 것이므로 주석 처리 가능
+# torch==1.9.0
+# torchvision==0.10.0
+
+numpy
+matplotlib
+librosa
+scikit-learn
+tqdm
+onnx
+onnxruntime

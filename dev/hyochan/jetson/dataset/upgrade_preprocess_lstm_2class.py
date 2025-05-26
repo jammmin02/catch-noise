@@ -8,8 +8,8 @@ from collections import Counter
 import random
 
 # 설정
-base_dir = 'hyochan/2class_predict_model/data'
-output_dir = 'hyochan/2class_predict_model/dataset/outputs/cnn_lstm'
+base_dir = 'hyochan/jetson/data'
+output_dir = 'hyochan/jetson/dataset/outputs/cnn_lstm'
 sr = 22050
 n_mfcc = 13
 hop_length = 512
@@ -21,7 +21,6 @@ max_len = int(frame_per_second * segment_duration)
 
 X, y = [], []
 
-# ✅ 2-class만 사용
 label_names = ['non_noisy', 'noisy']
 label_map = {name: idx for idx, name in enumerate(label_names)}
 
@@ -57,6 +56,8 @@ def save_class_distribution_graph(original_y, oversampled_y, label_names, save_p
 def oversample_data(X, y):
     print("\n📊 오버샘플링 시작...")
     counter = Counter(y)
+    if not counter:
+        raise ValueError("y가 비어있습니다. 오버샘플링 불가능합니다.")
     max_count = max(counter.values())
     new_X, new_y = list(X), list(y)
 
@@ -90,7 +91,6 @@ for label_name in label_names:
     for file_name in tqdm(files, desc=f"[{label_name}] 전처리", unit="file"):
         file_path = os.path.join(folder_path, file_name)
 
-        # 비 wav → wav 변환
         if file_name.lower().endswith(('.mp4', '.m4a', '.mp3')):
             wav_name = os.path.splitext(file_name)[0] + '.wav'
             wav_path = os.path.join(folder_path, wav_name)
@@ -99,24 +99,32 @@ for label_name in label_names:
 
         base_filename = os.path.splitext(file_name)[0]
         try:
-            total_duration = librosa.get_duration(path=file_path)
-        except:
-            print(f"❗ duration 읽기 실패: {file_path}")
+            y_audio_all, _ = librosa.load(file_path, sr=sr)
+            total_duration = librosa.get_duration(y=y_audio_all, sr=sr)
+        except Exception as e:
+            print(f"❗ duration 읽기 실패: {file_path} - {e}")
             continue
 
         segment_count = int(total_duration // segment_duration)
+        if segment_count == 0:
+            print(f"⚠️ usable segment 없음 (duration too short): {file_path}")
+            continue
 
         for i in range(segment_count):
             offset = i * segment_duration
             try:
                 y_audio, _ = librosa.load(file_path, sr=sr, offset=offset, duration=segment_duration)
-            except:
-                print(f"❗ load 실패: {file_path} (segment {i})")
+            except Exception as e:
+                print(f"❗ load 실패: {file_path} (segment {i}) - {e}")
                 continue
 
             mfcc = librosa.feature.mfcc(y=y_audio, sr=sr, n_mfcc=n_mfcc, hop_length=hop_length)
             zcr = librosa.feature.zero_crossing_rate(y=y_audio, hop_length=hop_length)
             features = np.vstack([mfcc, zcr])
+
+            if np.isnan(features).any():
+                print(f"⚠️ NaN 존재: {file_path} (segment {i})")
+                continue
 
             if features.shape[1] < max_len:
                 features = np.pad(features, ((0, 0), (0, max_len - features.shape[1])), mode='constant')
@@ -126,7 +134,6 @@ for label_name in label_names:
             X.append(features.T)
             y.append(label)
 
-            # 🔍 시각화 저장
             if save_visuals:
                 save_path = os.path.join(output_dir, 'visuals', label_name, f"{base_filename}_seg{i+1}.png")
                 plt.figure(figsize=(10, 4))
@@ -141,15 +148,18 @@ for label_name in label_names:
 
 # 🔁 오버샘플링 + 클래스 분포 시각화 저장
 original_y = y.copy()
-X, y = oversample_data(X, y)
-save_class_distribution_graph(original_y, y, label_names, os.path.join(output_dir, 'class_distribution.png'))
+try:
+    X, y = oversample_data(X, y)
+    save_class_distribution_graph(original_y, y, label_names, os.path.join(output_dir, 'class_distribution.png'))
+except ValueError as e:
+    print(f"❌ 오버샘플링 실패: {e}")
+    exit(1)
 
 # 💾 저장
 os.makedirs(output_dir, exist_ok=True)
 np.save(os.path.join(output_dir, "X_lstm.npy"), np.array(X))
 np.save(os.path.join(output_dir, "y_lstm.npy"), np.array(y))
 
-# ✅ 출력 결과 요약
 print("✅ segment_duration:", segment_duration)
 print("✅ Calculated max_len:", max_len)
 print("✅ X shape (LSTM용):", np.array(X).shape)
