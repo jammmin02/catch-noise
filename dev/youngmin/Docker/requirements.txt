@@ -1,8 +1,0 @@
-librosa==0.10.0
-numpy>=1.23
-matplotlib
-tqdm
-scikit-learn
-soundfile
-tensorflow==2.13.0
-seaborn

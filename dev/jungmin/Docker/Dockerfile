@@ -1,5 +1,5 @@
-# ✅ TensorFlow 2.13.0 기반 이미지
-FROM tensorflow/tensorflow:2.13.0
+# ✅ TensorFlow 2.15.0 기반 이미지
+FROM tensorflow/tensorflow:2.15.0
 
 # ✅ 시스템 패키지 설치 (ffmpeg 포함)
 RUN apt-get update && apt-get install -y \

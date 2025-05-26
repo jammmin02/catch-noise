@@ -5,19 +5,19 @@ __pycache__/
 *.egg-info/
 *.log
 
-# ▶️ 가상환경
+#  가상환경
 .venv/
 env/
 venv/
 ENV/
 
-# ▶️ Jupyter Notebook 체크포인트
+#  Jupyter Notebook 체크포인트
 .ipynb_checkpoints/
 
-# ▶️ VSCode 설정
+#  VSCode 설정
 .vscode/
 
-# ▶️ 데이터/모델/출력
+#  데이터/모델/출력
 data/
 outputs/
 *.h5
@@ -32,15 +32,14 @@ outputs/
 *.tsv
 *.json
 
-# ▶️ 오디오 파일 (음성 데이터 등)
+#  오디오 파일 (음성 데이터 등)
 *.wav
 *.mp3
 *.flac
 *.aac
 *.ogg
-*.m4a
 
-# ▶️ 이미지 파일 (데이터 시각화 / 입력 이미지 등)
+#  이미지 파일 (데이터 시각화 / 입력 이미지 등)
 *.png
 *.jpg
 *.jpeg
@@ -49,18 +48,22 @@ outputs/
 *.tiff
 *.webp
 
-# ▶️ Docker 빌드 파일들 (로그 등)
+#  Docker 빌드 파일들 (로그 등)
 *.tar
 *.log
 *.pid
 
-# ▶️ 테스트 디렉토리 (테스트 오디오 등)
+#  테스트 디렉토리 (테스트 오디오 등)
 test_audio_batch/
 test_output/
 
-# ▶️ MacOS / Windows 자동 생성 파일
+#  MacOS / Windows 자동 생성 파일
 .DS_Store
 Thumbs.db
 
-# ▶️ Git 백업 충돌
+#  Git 백업 충돌
 *.orig
+
+#  MLflow 실험 기록 폴더 제외
+mlruns/
+mlartifacts/
