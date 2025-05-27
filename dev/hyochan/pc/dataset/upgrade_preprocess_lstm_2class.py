@@ -8,8 +8,8 @@ from collections import Counter
 import random
 
 # 설정
-base_dir = 'hyochan/jetson/data'
-output_dir = 'hyochan/jetson/dataset/outputs/cnn_lstm'
+base_dir = 'hyochan/pc/data'
+output_dir = 'hyochan/pc/dataset/outputs/cnn_lstm'
 sr = 22050
 n_mfcc = 13
 hop_length = 512

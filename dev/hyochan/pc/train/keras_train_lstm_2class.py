@@ -19,7 +19,7 @@ mlflow.set_experiment(experiment_name)
 os.environ["MLFLOW_ARTIFACT_URI"] = "file:/app/mlruns"
 
 # ✅ 경로 설정
-base_dir = "hyochan/jetson/dataset/outputs/cnn_lstm"
+base_dir = "hyochan/pc/dataset/outputs/cnn_lstm"
 os.makedirs(base_dir, exist_ok=True)
 X_path = os.path.join(base_dir, "X_lstm.npy")
 y_path = os.path.join(base_dir, "y_lstm.npy")
