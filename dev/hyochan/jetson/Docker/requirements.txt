@@ -18,8 +18,5 @@ imageio-ffmpeg==0.4.3
 # Progress bar
 tqdm==4.62.3
 
-# Deep learning (TensorFlow)
-tensorflow==2.7.0
-
 # Experiment tracking
-mlflow==1.26.1
+mlflow==1.23.1
