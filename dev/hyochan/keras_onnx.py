@@ -3,7 +3,7 @@ from tensorflow import keras
 import tensorflow as tf
 
 # 모델 로드
-model = keras.models.load_model("hyochan/jetson/dataset/outputs/cnn_lstm/cnn_lstm_model.keras")
+model = keras.models.load_model("hyochan/pc/dataset/outputs/cnn_lstm/cnn_lstm_model.keras")
 
 # Dummy 입력 설정
 input_shape = model.input_shape  # 예: (None, 86, 14, 1)
