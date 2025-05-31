@@ -67,3 +67,8 @@ Thumbs.db
 #  MLflow 실험 기록 폴더 제외
 mlruns/
 mlartifacts/
+mlruns.db/
+mlflow.db/
+
+# saved_model 폴더 제외
+saved_model/
