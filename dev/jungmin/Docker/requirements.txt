@@ -9,8 +9,4 @@ tensorflow==2.15.0
 seaborn
 soundfile
 tqdm
-<<<<<<< HEAD
 mlflow
-=======
-mlflow
->>>>>>> origin/main
