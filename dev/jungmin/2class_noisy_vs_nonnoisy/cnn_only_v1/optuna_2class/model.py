@@ -2,7 +2,28 @@ import torch
 import torch.nn as nn
 
 class CNNOnly(nn.Module):
-    def __init__(self, conv1_filters, conv2_filters, dense_units, dropout):
+    """
+    CNN 기반의 2-class 오디오 분류 모델
+
+    - LSTM 제거 (실시간 최적화 및 TensorRT 변환 용이)
+    - 입력: (batch_size, 1, height, width)
+    - 출력: 이진 분류 logits (Sigmoid 미적용 상태)
+    """
+    def __init__(self, input_shape, conv1_filters, conv2_filters, dense_units, dropout):
+        """
+        Parameters
+        ----------
+        input_shape : tuple
+            입력 데이터의 (height, width), ex: (86, 14)
+        conv1_filters : int
+            첫번째 Conv2D filter 수
+        conv2_filters : int
+            두번째 Conv2D filter 수
+        dense_units : int
+            Dense layer의 hidden unit 수
+        dropout : float
+            Dropout 비율
+        """
         super().__init__()
 
         self.features = nn.Sequential(
@@ -14,34 +35,35 @@ class CNNOnly(nn.Module):
             nn.MaxPool2d(2)
         )
 
-        # 🔽 input feature 수를 동적으로 계산
-        self.flatten_dim = None  # 처음에 None으로 두고 forward에서 계산
+        # Conv 연산 후 feature map 차원 계산 (TensorRT 변환 위해 고정 필수)
+        height, width = input_shape
+        height = height // 4  # MaxPool2d(2) 두 번 적용 → 1/4 축소
+        width = width // 4
+        self.flatten_dim = conv2_filters * height * width
 
-        self.classifier_head = nn.Sequential(
+        self.classifier = nn.Sequential(
+            nn.Linear(self.flatten_dim, dense_units),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(dense_units, 1),
-            nn.Sigmoid()
+            nn.Linear(dense_units, 1)
+            # Sigmoid 제거 → BCEWithLogitsLoss()에서 내부 적용 예정
         )
 
-        self.dense_units = dense_units
-        self.dropout = dropout
-        self.conv2_filters = conv2_filters
-
     def forward(self, x):
-      x = self.features(x)
-      B = x.size(0)
-      x = x.view(B, -1)  # flatten
+        """
+        Forward propagation
 
-      if self.flatten_dim is None:
-        self.flatten_dim = x.size(1)
-        # Linear 계층 정의 + 자동 device 적용
-        self.classifier = nn.Sequential(
-            nn.Linear(self.flatten_dim, self.dense_units),
-            nn.ReLU(),
-            nn.Dropout(self.dropout),
-            nn.Linear(self.dense_units, 1),
-            nn.Sigmoid()
-        ).to(x.device)  # 🔥 중요: 이걸로 GPU에 자동 이동됨
+        Parameters
+        ----------
+        x : torch.Tensor
+            입력 tensor, shape: (batch_size, 1, height, width)
 
-      return self.classifier(x)
+        Returns
+        -------
+        logits : torch.Tensor
+            출력 logits, shape: (batch_size, 1)
+        """
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        logits = self.classifier(x)
+        return logits
