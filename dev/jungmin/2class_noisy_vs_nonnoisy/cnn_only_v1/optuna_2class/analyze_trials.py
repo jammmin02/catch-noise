@@ -5,39 +5,44 @@ import seaborn as sns
 import os
 from datetime import datetime
 
-# ✅ 오늘 날짜 기준 실험 이름
+# MLflow 서버 URI 설정
+MLFLOW_TRACKING_URI = "http://210.101.236.174:5000"
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+# 분석할 실험 이름 (날짜별 실험에 맞게 수정 필요)
 EXPERIMENT_NAME = "optuna_cnn_2class_20250527_XXXXXX"
-print(f"📁 Analyzing Experiment: {EXPERIMENT_NAME}")
+print(f"Analyzing Experiment: {EXPERIMENT_NAME}")
 
 def main():
+    # MLflow Experiment 검색
     try:
-        mlflow.set_tracking_uri("http://210.101.236.174:5000")
         experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
     except Exception as e:
-        print(f"❌ MLflow 연결 실패: {e}")
+        print(f"MLflow 연결 실패: {e}")
         return
 
     if experiment is None:
-        print(f"❌ Experiment '{EXPERIMENT_NAME}' not found!")
+        print(f"Experiment '{EXPERIMENT_NAME}' not found!")
         return
 
     experiment_id = experiment.experiment_id
-    print(f"📥 Experiment ID: {experiment_id}")
+    print(f"Experiment ID: {experiment_id}")
 
+    # 해당 실험의 모든 run 조회
     try:
         df = mlflow.search_runs(experiment_ids=[experiment_id])
     except Exception as e:
-        print(f"❌ Run 조회 실패: {e}")
+        print(f"Run 조회 실패: {e}")
         return
 
     if df.empty:
-        print("⚠️ No runs found for this experiment.")
+        print("No runs found for this experiment.")
         return
 
-    # ✅ Run 이름 설정 (없을 경우 run_id 일부 사용)
+    # Run 이름 설정 (run_name 컬럼 보정)
     df["run_name"] = df.get("tags.mlflow.runName", df["run_id"].str.slice(0, 8))
 
-    # ✅ CNN-only에 필요한 컬럼만 선택
+    # 분석에 필요한 주요 컬럼만 필터링
     columns_needed = [
         "run_name", "metrics.val_accuracy",
         "params.conv1_filters", "params.conv2_filters",
@@ -46,7 +51,7 @@ def main():
     existing_columns = [col for col in columns_needed if col in df.columns]
     df_filtered = df[existing_columns].copy()
 
-    # ✅ 컬럼 이름 단축
+    # 컬럼 이름 간소화
     df_filtered.rename(columns={
         "metrics.val_accuracy": "val_accuracy",
         "params.batch_size": "batch",
@@ -57,33 +62,36 @@ def main():
         "params.lr": "lr"
     }, inplace=True)
 
-    # ✅ 정렬
+    # val_accuracy 기준 내림차순 정렬
     df_sorted = df_filtered.sort_values("val_accuracy", ascending=False).reset_index(drop=True)
 
-    print("\n🔝 Top 5 Trials by val_accuracy:")
-    print(df_sorted[["run_name", "val_accuracy", "conv1", "conv2", "lr"]].head(5))
+    # 상위 5개 출력
+    print("\nTop 5 Trials:")
+    print(df_sorted[["run_name", "val_accuracy", "conv1", "conv2", "dense", "lr"]].head(5))
 
-    # ✅ 시각화 & 저장
-    os.makedirs("analysis_outputs", exist_ok=True)
-    top5 = df_sorted.head(5)
+    # 분석 결과 저장 디렉토리 생성
+    output_dir = "analysis_outputs"
+    os.makedirs(output_dir, exist_ok=True)
 
+    # 상위 5개 정확도 시각화 (막대그래프)
     plt.figure(figsize=(10, 6))
-    sns.barplot(x="run_name", y="val_accuracy", data=top5, palette="viridis")
+    sns.barplot(x="run_name", y="val_accuracy", data=df_sorted.head(5), palette="viridis")
     plt.title("Top 5 Trials by Validation Accuracy")
     plt.ylabel("Validation Accuracy")
     plt.xlabel("Run Name")
     plt.ylim(0, 1)
     plt.xticks(rotation=30)
     plt.tight_layout()
-    plt.savefig("analysis_outputs/top5_accuracy.png")
-    plt.close()
-    print("📊 저장 완료: analysis_outputs/top5_accuracy.png")
 
-    # ✅ CSV 저장
-    csv_path = "analysis_outputs/trial_summary.csv"
+    plt.savefig(os.path.join(output_dir, "top5_accuracy.png"))
+    plt.close()
+    print("시각화 저장 완료:", os.path.join(output_dir, "top5_accuracy.png"))
+
+    # 전체 결과 CSV 저장
+    csv_path = os.path.join(output_dir, "trial_summary.csv")
     df_sorted.to_csv(csv_path, index=False)
-    print(f"📄 저장 완료: {csv_path}")
-    print("✅ 분석 완료!")
+    print("CSV 저장 완료:", csv_path)
+    print("분석 완료!")
 
 if __name__ == "__main__":
     main()
