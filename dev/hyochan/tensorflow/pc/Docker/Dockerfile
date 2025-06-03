@@ -20,7 +20,7 @@ WORKDIR /app
 COPY . /app
 
 # ✅ requirements 설치 (distutils 설치 우회)
-RUN pip install --no-cache-dir --ignore-installed -r hyochan/jetson/Docker/requirements.txt
+RUN pip install --no-cache-dir --ignore-installed -r hyochan/tensorflow/pc/Docker/requirements.txt
 
 # ✅ 기본 실행 명령어
 CMD ["bash"]

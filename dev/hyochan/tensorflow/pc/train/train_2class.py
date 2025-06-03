@@ -7,23 +7,23 @@ from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from tensorflow.keras.models import Sequential, save_model
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Reshape, LSTM, Dense, Dropout
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout  # ✅ 수정
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.losses import BinaryCrossentropy
 
 # ✅ 유니크한 실험 이름 설정
 now = datetime.now().strftime("%Y%m%d_%H%M%S")
-experiment_name = f"train_cnn_lstm_2class_hyochan_{now}"
+experiment_name = f"{now}_hyochan_train_cnn_2class"
 mlflow.set_tracking_uri("http://210.101.236.174:5000")
 mlflow.set_experiment(experiment_name)
 os.environ["MLFLOW_ARTIFACT_URI"] = "file:/app/mlruns"
 
 # ✅ 경로 설정
-base_dir = "hyochan/pc/dataset/outputs/cnn_lstm"
+base_dir = "hyochan/tensorflow/pc/dataset/outputs/cnn_lstm"
 os.makedirs(base_dir, exist_ok=True)
 X_path = os.path.join(base_dir, "X_lstm.npy")
 y_path = os.path.join(base_dir, "y_lstm.npy")
-model_save_path = os.path.join(base_dir, "cnn_lstm_model.keras")
+model_save_path = os.path.join(base_dir, "cnn_only_model.keras")  # ✅ 파일명 변경
 model_summary_path = os.path.join(base_dir, "model_summary.txt")
 plot_save_path = os.path.join(base_dir, "train_history.png")
 confusion_path = os.path.join(base_dir, "confusion_matrix.png")
@@ -41,16 +41,13 @@ X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=2/9,
 
 # ✅ MLflow 실험 실행
 with mlflow.start_run():
-    # 🧠 모델 구성
-    timesteps = X.shape[1] // 4
-    features = (X.shape[2] // 4) * 64
+    # 🧠 CNN-only 모델 구성 (LSTM 제거)
     model = Sequential([
         Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(X.shape[1], X.shape[2], 1)),
         MaxPooling2D((2, 2)),
         Conv2D(64, (3, 3), activation='relu', padding='same'),
         MaxPooling2D((2, 2)),
-        Reshape((timesteps, features)),
-        LSTM(64),
+        Flatten(),  # ✅ LSTM 대신 Flatten 사용
         Dense(64, activation='relu'),
         Dropout(0.3),
         Dense(1, activation='sigmoid')
@@ -59,7 +56,7 @@ with mlflow.start_run():
 
     # ✅ 파라미터 로깅
     mlflow.log_params({
-        "architecture": "cnn_lstm",
+        "architecture": "cnn_only",  # ✅ 이름 변경
         "optimizer": "adam",
         "loss": "binary_crossentropy",
         "batch_size": 32,
