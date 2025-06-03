@@ -8,8 +8,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import random
 import uuid
-import json
-from datetime import datetime
 import argparse
 from sklearn.preprocessing import StandardScaler
 import joblib
@@ -18,6 +16,7 @@ import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
+# 시드 고정 (재현성 확보)
 SEED = 42
 random.seed(SEED)
 np.random.seed(SEED)
@@ -32,7 +31,7 @@ def compute_zcr_torch(y_audio_tensor, hop_length):
     )
     return zcr.squeeze(0).numpy()
 
-# 전역 파라미터
+# 파라미터 설정
 parser = argparse.ArgumentParser()
 parser.add_argument('--base_dir', type=str, default=os.path.abspath('data'))
 parser.add_argument('--output_dir', type=str, default=os.path.abspath('dev/jungmin/2class_noisy_vs_nonnoisy/cnn_only_v1/outputs'))
@@ -47,22 +46,35 @@ parser.add_argument('--sample_size', type=int, default=None)
 parser.add_argument('--num_workers', type=int, default=mp.cpu_count())
 args = parser.parse_args([])
 
+# 라벨 매핑
 label_names = sorted([d for d in os.listdir(args.base_dir) if os.path.isdir(os.path.join(args.base_dir, d))])
 label_map = {name: idx for idx, name in enumerate(label_names)}
 
 frame_per_second = args.sr / args.hop_length
 max_len = int(np.ceil(frame_per_second * args.segment_duration))
 
-# torchaudio transform 초기화 (worker 단위)
-def init_worker_transform():
-    global mfcc_transform
-    mfcc_transform = T.MFCC(
-        sample_rate=args.sr,
-        n_mfcc=args.n_mfcc,
-        melkwargs={'n_mels': args.n_mels, 'hop_length': args.hop_length}
-    )
+# 전체 파일 리스트 구성 (경로 안정화)
+all_files = []
+for label_name in label_names:
+    folder_path = os.path.join(args.base_dir, label_name)
+    files = [
+        os.path.abspath(os.path.join(folder_path, f))
+        for f in os.listdir(folder_path) if f.lower().endswith('.wav')
+    ]
+    all_files.extend([(label_name, f) for f in files])
 
-# 각 파일 단위 전처리 함수 (worker 단위 병렬화)
+if args.sample_size:
+    all_files = all_files[:args.sample_size]
+
+total_files = len(all_files)
+
+# 실시간 진행률 표시용 공유 변수
+from multiprocessing import Value, Lock
+
+counter = Value('i', 0)
+lock = Lock()
+
+# 각 파일 단위 전처리 함수
 def process_file(item):
     label_name, file_path = item
     label = label_map[label_name]
@@ -73,6 +85,11 @@ def process_file(item):
     try:
         info = torchaudio.info(file_path)
         total_duration = info.num_frames / info.sample_rate
+
+        if total_duration < args.segment_duration:
+            logs.append({'file': file_name, 'error': f"파일 길이 부족 (duration: {total_duration:.2f}s)"})
+            return segments, logs
+
     except Exception as e:
         logs.append({'file': file_name, 'error': str(e)})
         return segments, logs
@@ -84,6 +101,13 @@ def process_file(item):
         try:
             y_audio, sr = torchaudio.load(file_path, frame_offset=offset, num_frames=frames)
             y_audio = torch.mean(y_audio, dim=0)
+
+            # transform 안전하게 매 sample마다 생성
+            mfcc_transform = T.MFCC(
+                sample_rate=args.sr,
+                n_mfcc=args.n_mfcc,
+                melkwargs={'n_mels': args.n_mels, 'hop_length': args.hop_length}
+            )
 
             mfcc = mfcc_transform(y_audio.unsqueeze(0)).squeeze(0).numpy()
             zcr = compute_zcr_torch(y_audio, hop_length=args.hop_length)
@@ -117,26 +141,7 @@ def process_file(item):
 
     return segments, logs
 
-# 전체 파일 리스트 구성
-all_files = []
-for label_name in label_names:
-    folder_path = os.path.join(args.base_dir, label_name)
-    files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.lower().endswith('.wav')]
-    all_files.extend([(label_name, f) for f in files])
-
-# 샘플 수 제한
-if args.sample_size:
-    all_files = all_files[:args.sample_size]
-
-total_files = len(all_files)
-
-# 실시간 진행률 표시용 공유 변수
-from multiprocessing import Value, Lock
-
-counter = Value('i', 0)
-lock = Lock()
-
-# 진행률 출력 래퍼 함수
+# 진행률 출력 래퍼
 def wrapped_process_file(item):
     segments, logs = process_file(item)
     with lock:
@@ -154,24 +159,27 @@ print(f"총 {total_files}개 파일 처리 시작 (병렬 workers: {args.num_wor
 
 X, y, logs_all = [], [], []
 
-with mp.Pool(processes=args.num_workers, initializer=init_worker_transform) as pool:
+with mp.Pool(processes=args.num_workers) as pool:
     for segments, logs in pool.imap_unordered(wrapped_process_file, all_files):
         for features_t, label in segments:
             X.append(features_t)
             y.append(label)
         logs_all.extend(logs)
 
-print("\n전처리 완료 (병렬 최적화 + 실시간 시각화 적용)!")
+print("\n전처리 완료 (병렬 최적화 + 실시간 진행률)")
 
 # numpy 변환 및 표준화
-X_array = np.array(X)
+if len(X) == 0:
+    raise ValueError("⚠ 전처리 결과가 비어 있습니다. 데이터 확인 필요")
+
+X_array = np.stack(X, axis=0)
 n_samples, time_steps, n_features = X_array.shape
 
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X_array.reshape(-1, n_features)).reshape(n_samples, time_steps, n_features)
 joblib.dump(scaler, os.path.join(args.output_dir, "scaler_cnn.pkl"))
 
-# 오버샘플링 (라벨 균형 유지)
+# 오버샘플링
 data_by_label = {i: [] for i in range(len(label_names))}
 for f, l in zip(X_scaled, y):
     data_by_label[l].append(f)
@@ -198,7 +206,7 @@ np.save(os.path.join(args.output_dir, "X_cnn.npy"), np.array(X_balanced))
 np.save(os.path.join(args.output_dir, "y_cnn.npy"), np.array(y_balanced))
 pd.DataFrame(logs_all).to_csv(os.path.join(args.output_dir, "segment_logs.csv"), index=False)
 
-# 일부 샘플만 시각화
+# 일부 샘플 시각화
 for idx in range(min(args.visuals_to_save, len(X))):
     sample = X[idx].T
 
@@ -227,4 +235,4 @@ for idx in range(min(args.visuals_to_save, len(X))):
     else:
         plt.show()
 
-print("전처리 및 시각화까지 전체 완료!")
+print("✅ 전체 전처리 및 시각화 완료!")
