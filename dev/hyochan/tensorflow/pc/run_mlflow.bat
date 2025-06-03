@@ -10,7 +10,7 @@ set "PROJECT_ROOT_UNIX=%PROJECT_ROOT:\=/%"
 REM 🐳 Docker 설정
 set "IMAGE_NAME=noise-preprocess"
 set "CONTAINER_NAME=noise-runner"
-set "DOCKERFILE=hyochan/jetson/Docker/Dockerfile"
+set "DOCKERFILE=hyochan/tensorflow/pc/Docker/Dockerfile"
 set "MLFLOW_TRACKING_URI=http://210.101.236.174:5000"
 
 REM 🐋 Docker 이미지 존재 여부 확인 후 빌드
