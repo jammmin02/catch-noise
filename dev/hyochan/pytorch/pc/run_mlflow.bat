@@ -1,16 +1,16 @@
 @echo off
 REM 현재 스크립트 위치로 이동
 cd /d %~dp0
-cd ../..
+cd ../../..
 
 REM 🔧 프로젝트 루트 경로 (Windows → Unix 스타일 변환)
 set "PROJECT_ROOT=%cd%"
 set "PROJECT_ROOT_UNIX=%PROJECT_ROOT:\=/%"
 
-REM 🐳 Docker 설정
-set "IMAGE_NAME=noise-preprocess1"
-set "CONTAINER_NAME=noise-runner1"
-set "DOCKERFILE=hyochan/tensorflow/pc/Docker1/Dockerfile"
+REM 🐳 Docker 설정 (PyTorch 기준으로 변경)
+set "IMAGE_NAME=noise-preprocess"
+set "CONTAINER_NAME=noise-runner"
+set "DOCKERFILE=hyochan/pytorch/pc/Docker/Dockerfile"
 set "MLFLOW_TRACKING_URI=http://210.101.236.174:5000"
 
 REM 🐋 Docker 이미지 존재 여부 확인 후 빌드
@@ -22,7 +22,7 @@ if %errorlevel%==0 (
     docker build -t %IMAGE_NAME% -f "%DOCKERFILE%" "%PROJECT_ROOT%"
 )
 
-REM 컨테이너가 실행 중이면 안내만 출력
+REM 컨테이너가 실행 중인지 확인
 docker inspect -f "{{.State.Status}}" %CONTAINER_NAME% 2>nul | findstr "running" >nul
 if %errorlevel%==0 (
     echo ✅ Container already running: MLflow UI → %MLFLOW_TRACKING_URI%

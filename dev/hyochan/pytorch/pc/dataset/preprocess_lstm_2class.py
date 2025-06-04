@@ -7,9 +7,9 @@ from tqdm import tqdm
 from collections import Counter
 import random
 
-# 설정
-base_dir = 'hyochan/tensorflow/pc/data'
-output_dir = 'hyochan/tensorflow/pc/dataset/outputs/cnn_lstm'
+# ✅ Docker 환경에서는 상대 경로 기준으로 작성 권장
+base_dir = 'hyochan/pytorch/pc/data'
+output_dir = 'hyochan/pytorch/pc/dataset/outputs/cnn_lstm'
 sr = 22050
 n_mfcc = 13
 hop_length = 512
@@ -153,7 +153,7 @@ try:
     save_class_distribution_graph(original_y, y, label_names, os.path.join(output_dir, 'class_distribution.png'))
 except ValueError as e:
     print(f"❌ 오버샘플링 실패: {e}")
-    exit(1)
+    raise
 
 # 💾 저장
 os.makedirs(output_dir, exist_ok=True)
