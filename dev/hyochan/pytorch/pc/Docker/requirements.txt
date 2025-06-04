@@ -18,8 +18,14 @@ imageio-ffmpeg==0.4.7
 # 진행바
 tqdm==4.64.1
 
+# ML 실험 관리
+mlflow==1.30.0
+
 # 최적화 도구
 optuna==3.0.3
 
-# 실시간 오디오 입력용 (ARM64 빌드 문제 없는 최적 안정판)
+# PyTorch 생태계 (torch, torchvision, torchaudio는 별도 설치)
+# (이미 Dockerfile에서 pip3 install로 따로 설치됨 → 여기선 적지 않음)
+
+# 실시간 오디오 입력용 (선택사항)
 sounddevice==0.4.6
