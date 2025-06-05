@@ -1,26 +1,21 @@
-FROM pytorch/pytorch:1.9.0-cuda10.2-cudnn7-devel
+# ✅ CUDA 11.7 + PyTorch 1.13.1 (Windows는 linux/amd64로 대체 예시)
+FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu22.04
 
-ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR /app
-
-# GPG 키 추가 (NVIDIA 저장소용)
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
-
-# 시스템 패키지 설치
 RUN apt-get update && apt-get install -y \
-    ffmpeg libsndfile1 libasound2-dev \
-    libportaudio2 libportaudiocpp0 portaudio19-dev\
-    libsm6 libxext6 libxrender-dev \
-    git curl unzip cmake build-essential \
-    python3-pip python3.6 python3.6-dev \
-    && rm -rf /var/lib/apt/lists/*
+    ffmpeg \
+    git \
+    build-essential \
+    python3 \
+    python3-pip \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 파이썬 링크
-RUN ln -s /usr/bin/python3.6 /usr/bin/python && \
-    ln -s /usr/bin/pip3 /usr/bin/pip
+WORKDIR /app
+COPY . /app
 
-COPY requirements.txt ./
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+RUN pip3 install --upgrade pip
 
-CMD ["/bin/bash"]
+RUN pip3 install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
+
+RUN pip3 install -r docker/requirements.txt
+
+CMD ["bash"]
