@@ -10,23 +10,45 @@ from torch.optim import Adam
 from model import CNNOnly
 from data_loader import load_data
 
-# 디바이스 설정 (GPU 사용 가능 시 GPU)
+# 디바이스 설정
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# MLflow 설정 (서버 주소는 팀 공용으로 관리됨)
+# MLflow 설정
 mlflow.set_tracking_uri("http://210.101.236.174:5000")
 mlflow.set_experiment("optuna_cnn_2class")
 
-# 최적 하이퍼파라미터 로드
-with open("outputs/cnn_only/best_params.json", "r") as f:
+# 경로 설정
+base_dir = "/app/dev/jungmin/2class_noisy_vs_nonnoisy/cnn_only_v1/outputs"
+
+# Optuna 결과에서 best 하이퍼파라미터 로드
+with open(os.path.join(base_dir, "best_params.json"), "r") as f:
     best_params = json.load(f)
 
-# 데이터 로드 (이번엔 테스트셋 평가)
-batch_size = best_params["batch_size"]
-_, _, test_loader = load_data(batch_size)
+# 전체 데이터를 로드하여 최종 재학습 진행 (train+val+test 전체)
+X = np.load(os.path.join(base_dir, "X_cnn.npy"))
+y = np.load(os.path.join(base_dir, "y_cnn.npy"))
 
-# CNN 모델 정의 (input_shape 명확히 명시)
-input_shape = (86, 14)
+# 스케일러 로드 및 전체 데이터 정규화
+from sklearn.preprocessing import StandardScaler
+import joblib
+
+scaler = joblib.load(os.path.join(base_dir, "scaler_cnn.pkl"))
+n_samples, time_steps, n_features = X.shape
+X_scaled = scaler.transform(X.reshape(-1, n_features)).reshape(n_samples, time_steps, n_features)
+
+# TensorDataset 준비
+X_tensor = torch.tensor(X_scaled, dtype=torch.float32).unsqueeze(1)
+y_tensor = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
+dataset = torch.utils.data.TensorDataset(X_tensor, y_tensor)
+
+# DataLoader 준비
+batch_size = best_params["batch_size"]
+data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+# 입력 shape 자동 감지
+input_shape = X.shape[1:]  # (time_steps, n_features)
+
+# CNN 모델 정의
 model = CNNOnly(
     input_shape=input_shape,
     conv1_filters=best_params["conv1_filters"],
@@ -35,34 +57,54 @@ model = CNNOnly(
     dropout=best_params["dropout"]
 ).to(device)
 
-# 학습 완료된 모델 파라미터 로드
-model_path = "outputs/cnn_only/best_model.pt"
-model.load_state_dict(torch.load(model_path, map_location=device))
-model.eval()
+# 손실함수 및 옵티마이저
+loss_fn = BCEWithLogitsLoss()
+optimizer = Adam(model.parameters(), lr=best_params["lr"])
 
-# 테스트셋 평가 수행
-y_true, y_pred = [], []
-with torch.no_grad():
-    for xb, yb in test_loader:
+# 최종 전체 재학습 진행
+epochs = 20
+for epoch in range(1, epochs + 1):
+    model.train()
+    total_loss = 0.0
+    for xb, yb in data_loader:
         xb, yb = xb.to(device), yb.to(device)
         yb = yb.view(-1, 1)
 
         logits = model(xb)
+        loss = loss_fn(logits, yb)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        total_loss += loss.item()
+
+    avg_loss = total_loss / len(data_loader)
+    print(f"Epoch {epoch:2d} - Train Loss: {avg_loss:.4f}")
+
+# 재학습 완료 → 전체 train accuracy 확인
+model.eval()
+all_preds, all_targets = [], []
+with torch.no_grad():
+    for xb, yb in data_loader:
+        xb, yb = xb.to(device), yb.to(device)
+        logits = model(xb)
         probs = torch.sigmoid(logits).cpu().numpy().squeeze()
+        targets = yb.cpu().numpy().squeeze()
+        preds = (probs > 0.5).astype(int)
+        all_preds.extend(preds.tolist())
+        all_targets.extend(targets.tolist())
 
-        targets_batch = yb.cpu().numpy().squeeze()
-        preds_batch = (probs > 0.5).astype(int)
+final_acc = accuracy_score(all_targets, all_preds)
+print(f"Final Train Accuracy (on full data): {final_acc:.4f}")
 
-        y_pred.extend(preds_batch.tolist())
-        y_true.extend(targets_batch.tolist())
+# 모델 저장
+model_path = os.path.join(base_dir, "best_model.pt")
+torch.save(model.state_dict(), model_path)
 
-# 최종 테스트 정확도 계산
-acc = accuracy_score(y_true, y_pred)
-print(f"Test Accuracy: {acc:.4f}")
-
-# MLflow 기록 (최종 평가 결과)
-with mlflow.start_run(run_name="evaluate_best_model"):
-    mlflow.log_metric("test_accuracy", acc)
+# MLflow 기록 (최종 전체 재학습 기록)
+with mlflow.start_run(run_name="final_retrain_full_data"):
+    mlflow.log_metric("final_train_accuracy", final_acc)
     mlflow.log_params(best_params)
     mlflow.log_artifact(model_path)
-    print(f"모델 평가 및 로그 완료 → {model_path}")
+    print(f"최종 모델 저장 및 MLflow 기록 완료 → {model_path}")

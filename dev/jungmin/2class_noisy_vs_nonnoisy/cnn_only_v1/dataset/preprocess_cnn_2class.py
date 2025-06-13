@@ -3,78 +3,158 @@ import numpy as np
 import torch
 import torchaudio
 import torchaudio.transforms as T
-import torchaudio.functional as F
 import matplotlib.pyplot as plt
 import pandas as pd
 import random
 import uuid
 import argparse
-from sklearn.preprocessing import StandardScaler
-import joblib
-import multiprocessing as mp
+import concurrent.futures as cf
+import json
+from datetime import datetime
 import warnings
+from multiprocessing import Value, Lock
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# 시드 고정 (재현성 확보)
 SEED = 42
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-# ZCR 계산 (torchaudio 기반)
-def compute_zcr_torch(y_audio_tensor, hop_length):
-    zcr = F.compute_zero_crossing_rate(
-        y_audio_tensor.unsqueeze(0),
-        frame_length=hop_length,
-        hop_length=hop_length
-    )
-    return zcr.squeeze(0).numpy()
+CODE_VERSION = "robust_v7_torchaudio_numpy_zcr_with_visual"
+AUGMENTATION_FACTOR = 2
+VISUAL_SAMPLE_PROB = 0.1  # 시각화 샘플링 확률
 
-# 파라미터 설정
+# numpy 기반 ZCR
+def compute_zcr(y_audio_tensor, frame_size, hop_size):
+    y_np = y_audio_tensor.numpy()
+    zcr = []
+    for i in range(0, len(y_np) - frame_size, hop_size):
+        frame = y_np[i:i+frame_size]
+        crossings = np.diff(np.sign(frame))
+        zcr_val = (crossings != 0).sum() / frame_size
+        zcr.append(zcr_val)
+    return np.array(zcr)
+
+# 데이터 증강 (time shift)
+def augment_time_shift(y, max_shift=0.2):
+    shift_amt = int(random.uniform(-max_shift, max_shift) * len(y))
+    return torch.roll(y, shifts=shift_amt, dims=0)
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--base_dir', type=str, default=os.path.abspath('data'))
 parser.add_argument('--output_dir', type=str, default=os.path.abspath('dev/jungmin/2class_noisy_vs_nonnoisy/cnn_only_v1/outputs'))
 parser.add_argument('--segment_duration', type=float, default=2.0)
-parser.add_argument('--sr', type=int, default=44100)
+parser.add_argument('--target_sr', type=int, default=44100)
 parser.add_argument('--n_mfcc', type=int, default=13)
 parser.add_argument('--n_mels', type=int, default=40)
 parser.add_argument('--hop_length', type=int, default=512)
-parser.add_argument('--visuals_to_save', type=int, default=3)
-parser.add_argument('--save_visuals', action='store_true')
-parser.add_argument('--sample_size', type=int, default=None)
-parser.add_argument('--num_workers', type=int, default=mp.cpu_count())
+parser.add_argument('--n_fft', type=int, default=2048)
+parser.add_argument('--num_workers', type=int, default=4)
 args = parser.parse_args([])
 
-# 라벨 매핑
-label_names = sorted([d for d in os.listdir(args.base_dir) if os.path.isdir(os.path.join(args.base_dir, d))])
+label_names = ['non_noisy', 'noisy']
 label_map = {name: idx for idx, name in enumerate(label_names)}
 
-frame_per_second = args.sr / args.hop_length
+frame_per_second = args.target_sr / args.hop_length
 max_len = int(np.ceil(frame_per_second * args.segment_duration))
 
-# 전체 파일 리스트 구성 (경로 안정화)
 all_files = []
 for label_name in label_names:
     folder_path = os.path.join(args.base_dir, label_name)
-    files = [
-        os.path.abspath(os.path.join(folder_path, f))
-        for f in os.listdir(folder_path) if f.lower().endswith('.wav')
-    ]
-    all_files.extend([(label_name, f) for f in files])
-
-if args.sample_size:
-    all_files = all_files[:args.sample_size]
+    for root, dirs, files in os.walk(folder_path):
+        for f in files:
+            if f.lower().endswith('.wav'):
+                full_path = os.path.abspath(os.path.join(root, f))
+                all_files.append((label_name, full_path))
 
 total_files = len(all_files)
-
-# 실시간 진행률 표시용 공유 변수
-from multiprocessing import Value, Lock
-
+num_workers = min(args.num_workers, total_files)
 counter = Value('i', 0)
 lock = Lock()
 
-# 각 파일 단위 전처리 함수
+def load_audio(file_path, target_sr):
+    y_audio, sr = torchaudio.load(file_path)
+    y_audio = torch.mean(y_audio, dim=0)
+    if sr != target_sr:
+        resampler = T.Resample(orig_freq=sr, new_freq=target_sr)
+        y_audio = resampler(y_audio)
+    return y_audio
+
+def extract_features(y_audio_tensor, label, segment_idx, logs, save_dir, label_name, augment=False):
+    segments = []
+    try:
+        if augment:
+            y_audio_tensor = augment_time_shift(y_audio_tensor)
+
+        mfcc_transform = T.MFCC(
+            sample_rate=args.target_sr,
+            n_mfcc=args.n_mfcc,
+            melkwargs={
+                'n_fft': args.n_fft,
+                'hop_length': args.hop_length,
+                'n_mels': args.n_mels
+            }
+        )
+
+        mfcc = mfcc_transform(y_audio_tensor.unsqueeze(0)).squeeze(0).numpy()
+
+        if mfcc.shape[1] == 0:
+            logs.append({'segment': segment_idx, 'error': 'Empty MFCC'})
+            return []
+
+        zcr = compute_zcr(y_audio_tensor, frame_size=args.n_fft, hop_size=args.hop_length)
+        zcr_mean = np.mean(zcr)
+        zcr_feature = np.full((1, mfcc.shape[1]), zcr_mean)
+        features = np.vstack([mfcc, zcr_feature])
+
+        total_pad = max_len - features.shape[1]
+        if total_pad > 0:
+            left_pad = total_pad // 2
+            right_pad = total_pad - left_pad
+            features = np.pad(features, ((0, 0), (left_pad, right_pad)), mode='constant')
+        else:
+            features = features[:, :max_len]
+
+        uuid_name = f"{uuid.uuid4()}.npy"
+        np.save(os.path.join(save_dir, uuid_name), features.astype(np.float32))
+        segments.append(uuid_name)
+
+        logs.append({
+            'segment': segment_idx, 'label': label, 'uuid': uuid_name,
+            'zcr_mean': float(zcr_mean), 'mfcc_mean': float(np.mean(mfcc)), 'shape': features.shape
+        })
+
+        if random.random() < VISUAL_SAMPLE_PROB:
+            save_visualization(y_audio_tensor.numpy(), mfcc, zcr, label_name, uuid_name)
+
+    except Exception as e:
+        logs.append({'segment': segment_idx, 'error': str(e)})
+    
+    return segments
+
+def save_visualization(y_audio, mfcc, zcr, label_name, uuid_name):
+    vis_dir = os.path.join(args.output_dir, "visuals", label_name)
+    os.makedirs(vis_dir, exist_ok=True)
+    plt.figure(figsize=(10, 8))
+
+    plt.subplot(3, 1, 1)
+    plt.plot(y_audio)
+    plt.title("Waveform")
+
+    plt.subplot(3, 1, 2)
+    plt.imshow(mfcc, aspect='auto', origin='lower')
+    plt.title("MFCC")
+    plt.colorbar()
+
+    plt.subplot(3, 1, 3)
+    plt.plot(zcr)
+    plt.title("Zero Crossing Rate (ZCR)")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(vis_dir, f"{uuid_name}.png"))
+    plt.close()
+
 def process_file(item):
     label_name, file_path = item
     label = label_map[label_name]
@@ -83,65 +163,34 @@ def process_file(item):
     segments = []
 
     try:
-        info = torchaudio.info(file_path)
-        total_duration = info.num_frames / info.sample_rate
+        y_audio = load_audio(file_path, args.target_sr)
+        total_samples = len(y_audio)
+        samples_per_segment = int(args.segment_duration * args.target_sr)
+        n_segments = total_samples // samples_per_segment
 
-        if total_duration < args.segment_duration:
-            logs.append({'file': file_name, 'error': f"파일 길이 부족 (duration: {total_duration:.2f}s)"})
-            return segments, logs
+        if n_segments == 0:
+            pad_len = samples_per_segment - total_samples
+            if pad_len < 0:
+                logs.append({'file': file_name, 'error': 'Negative pad length'})
+                return [], logs
+            y_audio = torch.nn.functional.pad(y_audio, (0, pad_len))
+            segments.extend(extract_features(y_audio, label, 1, logs, segment_dir, label_name))
+            for _ in range(AUGMENTATION_FACTOR):
+                segments.extend(extract_features(y_audio, label, 1, logs, segment_dir, label_name, augment=True))
+        else:
+            for i in range(n_segments):
+                start = i * samples_per_segment
+                end = start + samples_per_segment
+                segment = y_audio[start:end]
+                segments.extend(extract_features(segment, label, i+1, logs, segment_dir, label_name))
+                for _ in range(AUGMENTATION_FACTOR):
+                    segments.extend(extract_features(segment, label, i+1, logs, segment_dir, label_name, augment=True))
 
     except Exception as e:
         logs.append({'file': file_name, 'error': str(e)})
-        return segments, logs
 
-    for i in range(int(total_duration // args.segment_duration)):
-        offset = int(i * args.segment_duration * args.sr)
-        frames = int(args.segment_duration * args.sr)
+    return [(s, label) for s in segments], logs
 
-        try:
-            y_audio, sr = torchaudio.load(file_path, frame_offset=offset, num_frames=frames)
-            y_audio = torch.mean(y_audio, dim=0)
-
-            # transform 안전하게 매 sample마다 생성
-            mfcc_transform = T.MFCC(
-                sample_rate=args.sr,
-                n_mfcc=args.n_mfcc,
-                melkwargs={'n_mels': args.n_mels, 'hop_length': args.hop_length}
-            )
-
-            mfcc = mfcc_transform(y_audio.unsqueeze(0)).squeeze(0).numpy()
-            zcr = compute_zcr_torch(y_audio, hop_length=args.hop_length)
-
-            zcr_mean = np.mean(zcr)
-            zcr_feature = np.full((1, mfcc.shape[1]), zcr_mean)
-            features = np.vstack([mfcc, zcr_feature])
-
-            if features.shape[1] < max_len:
-                pad_width = max_len - features.shape[1]
-                features = np.pad(features, ((0, 0), (0, pad_width)), mode='constant')
-            else:
-                features = features[:, :max_len]
-
-            features_t = features.T.astype(np.float32)
-            segments.append((features_t, label))
-
-            log = {
-                'file': file_name,
-                'segment': i + 1,
-                'label': label_name,
-                'uuid': str(uuid.uuid4()),
-                'zcr_mean': float(zcr_mean),
-                'mfcc_mean': float(np.mean(mfcc)),
-                'features_shape': features_t.shape
-            }
-            logs.append(log)
-
-        except Exception as e:
-            logs.append({'file': file_name, 'segment': i + 1, 'error': str(e)})
-
-    return segments, logs
-
-# 진행률 출력 래퍼
 def wrapped_process_file(item):
     segments, logs = process_file(item)
     with lock:
@@ -154,85 +203,73 @@ def wrapped_process_file(item):
         print(f"\r진행률 {bar} {ratio*100:.1f}% ({current}/{total_files})", end="", flush=True)
     return segments, logs
 
-# 병렬 처리 시작
-print(f"총 {total_files}개 파일 처리 시작 (병렬 workers: {args.num_workers})")
+# 디렉토리 준비
+os.makedirs(args.output_dir, exist_ok=True)
+segment_dir = os.path.join(args.output_dir, "segments")
+os.makedirs(segment_dir, exist_ok=True)
 
-X, y, logs_all = [], [], []
+X_info, logs_all = [], []
 
-with mp.Pool(processes=args.num_workers) as pool:
-    for segments, logs in pool.imap_unordered(wrapped_process_file, all_files):
-        for features_t, label in segments:
-            X.append(features_t)
-            y.append(label)
+print(f"총 {total_files}개 파일 처리 시작 (병렬 workers: {num_workers})")
+
+with cf.ProcessPoolExecutor(max_workers=num_workers) as executor:
+    futures = [executor.submit(wrapped_process_file, item) for item in all_files]
+    for future in cf.as_completed(futures):
+        segments, logs = future.result()
+        X_info.extend(segments)
         logs_all.extend(logs)
 
-print("\n전처리 완료 (병렬 최적화 + 실시간 진행률)")
+print("\n전처리 완료")
 
-# numpy 변환 및 표준화
-if len(X) == 0:
-    raise ValueError("⚠ 전처리 결과가 비어 있습니다. 데이터 확인 필요")
+if len(X_info) == 0:
+    print("전처리 결과가 비어있습니다.")
+    pd.DataFrame(logs_all).to_csv(os.path.join(args.output_dir, "segment_logs.csv"), index=False)
+    raise ValueError("전처리 결과 없음")
 
-X_array = np.stack(X, axis=0)
-n_samples, time_steps, n_features = X_array.shape
+# segment 파일 저장 완료 후 numpy 변환 추가 ========================
 
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X_array.reshape(-1, n_features)).reshape(n_samples, time_steps, n_features)
-joblib.dump(scaler, os.path.join(args.output_dir, "scaler_cnn.pkl"))
+if len(X_info) == 0:
+    print("전처리 결과가 비어있습니다.")
+    pd.DataFrame(logs_all).to_csv(os.path.join(args.output_dir, "segment_logs.csv"), index=False)
+    raise ValueError("전처리 결과 없음")
 
-# 오버샘플링
-data_by_label = {i: [] for i in range(len(label_names))}
-for f, l in zip(X_scaled, y):
-    data_by_label[l].append(f)
-
-lengths = [len(v) for v in data_by_label.values()]
-mean_len = int(np.mean(lengths))
-
-X_balanced, y_balanced = [], []
-for label, feats in data_by_label.items():
-    if len(feats) >= mean_len:
-        selected = random.sample(feats, mean_len)
-    else:
-        selected = feats * (mean_len // len(feats)) + random.sample(feats, mean_len % len(feats))
-    X_balanced.extend(selected)
-    y_balanced.extend([label] * mean_len)
-
-# 셔플 및 저장
-combined = list(zip(X_balanced, y_balanced))
-random.shuffle(combined)
-X_balanced, y_balanced = zip(*combined)
-
-os.makedirs(args.output_dir, exist_ok=True)
-np.save(os.path.join(args.output_dir, "X_cnn.npy"), np.array(X_balanced))
-np.save(os.path.join(args.output_dir, "y_cnn.npy"), np.array(y_balanced))
+# file_names.npy, labels.npy 저장 (robust_v7 원본 저장)
+file_names, labels = zip(*X_info)
+np.save(os.path.join(args.output_dir, "file_names.npy"), np.array(file_names))
+np.save(os.path.join(args.output_dir, "labels.npy"), np.array(labels))
 pd.DataFrame(logs_all).to_csv(os.path.join(args.output_dir, "segment_logs.csv"), index=False)
 
-# 일부 샘플 시각화
-for idx in range(min(args.visuals_to_save, len(X))):
-    sample = X[idx].T
+# 추가: 전체 통짜 numpy 변환
+X_list = []
+for file in file_names:
+    segment_path = os.path.join(segment_dir, file)
+    features = np.load(segment_path)
+    X_list.append(features)
 
-    plt.figure(figsize=(10, 8))
+X_array = np.stack(X_list, axis=0)
+y_array = np.array(labels)
 
-    plt.subplot(3, 1, 1)
-    plt.plot(sample[0])
-    plt.ylim(-1, 1)
-    plt.title("Waveform (Normalized)")
+# 기존 방식과 동일하게 전체 numpy 저장
+np.save(os.path.join(args.output_dir, "X_cnn.npy"), X_array)
+np.save(os.path.join(args.output_dir, "y_cnn.npy"), y_array)
 
-    plt.subplot(3, 1, 2)
-    im = plt.imshow(sample[:-1], aspect='auto', origin='lower')
-    plt.title("MFCC (Before Standardization)")
-    plt.colorbar(im, format="%+2.0f")
+# summary.json 기록 유지
+summary = {
+    'datetime': datetime.now().isoformat(),
+    'seed': SEED,
+    'code_version': CODE_VERSION,
+    'segment_duration': args.segment_duration,
+    'sample_rate': args.target_sr,
+    'hop_length': args.hop_length,
+    'n_mfcc': args.n_mfcc,
+    'n_fft': args.n_fft,
+    'max_len': max_len,
+    'label_map': label_map,
+    'augmentation_factor': AUGMENTATION_FACTOR,
+    'total_segments': len(X_info),
+    'failed_segments': len([l for l in logs_all if 'error' in l])
+}
+with open(os.path.join(args.output_dir, "summary.json"), 'w') as f:
+    json.dump(summary, f, indent=4)
 
-    plt.subplot(3, 1, 3)
-    plt.plot(sample[-1])
-    plt.ylim(0, 0.5)
-    plt.title("Zero Crossing Rate (ZCR)")
-
-    plt.tight_layout()
-
-    if args.save_visuals:
-        plt.savefig(os.path.join(args.output_dir, f"visual_sample_{idx}.png"))
-        plt.close()
-    else:
-        plt.show()
-
-print("✅ 전체 전처리 및 시각화 완료!")
+print("전처리 및 numpy 저장까지 전체 완료!")

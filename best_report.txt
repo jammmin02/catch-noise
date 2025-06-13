@@ -1,0 +1,13 @@
+Best Trial #0
+Validation Accuracy: 1.0000
+F1 Score: 1.0000
+
+Classification Report:
+              precision    recall  f1-score   support
+
+         0.0     1.0000    1.0000    1.0000      3682
+         1.0     1.0000    1.0000    1.0000      1414
+
+    accuracy                         1.0000      5096
+   macro avg     1.0000    1.0000    1.0000      5096
+weighted avg     1.0000    1.0000    1.0000      5096

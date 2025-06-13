@@ -3,6 +3,7 @@ import json
 import optuna
 import mlflow
 import torch
+import numpy as np
 from datetime import datetime
 from model import CNNOnly
 from objective_fn import objective
@@ -11,24 +12,25 @@ from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classifi
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# (선택적) CUDNN 비활성화 → 재현성용
 torch.backends.cudnn.enabled = False
 
-# MLflow 서버 주소 (환경변수 또는 기본 주소 사용)
+# MLflow 서버 주소
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://210.101.236.174:5000")
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
-# 실험명 자동 생성 (날짜 기반)
+# 실험명 자동 생성
 now = datetime.now()
 EXPERIMENT_NAME = f"optuna_cnn_2class_{now.strftime('%Y%m%d_%H%M%S')}"
 mlflow.set_experiment(EXPERIMENT_NAME)
+
+# robust_v7 기준 base_dir 통일
+base_dir = "/app/dev/jungmin/2class_noisy_vs_nonnoisy/cnn_only_v1/outputs"
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     N_TRIALS = 20
     trial_counter = {"current": 0}
 
-    # Optuna objective 래퍼 정의 (trial 번호 출력을 위해)
     def obj(trial):
         trial_counter["current"] += 1
         print(f"\n[Trial {trial_counter['current']}/{N_TRIALS}] 시작 (Optuna Trial #{trial.number})")
@@ -51,20 +53,25 @@ def main():
     print("Best Hyperparameters:")
     print(json.dumps(best.params, indent=2))
 
-    # MLflow Best 결과 기록
+    # MLflow 기록 및 저장
     with mlflow.start_run(run_name=f"best_trial_{best.number}"):
         for k, v in best.params.items():
             mlflow.log_param(k, v)
         mlflow.log_metric("best_val_accuracy", best_val_acc)
 
-        os.makedirs("outputs/cnn_only", exist_ok=True)
-        with open("outputs/cnn_only/best_params.json", "w") as f:
+        # robust_v7 기준 경로
+        os.makedirs(base_dir, exist_ok=True)
+        with open(os.path.join(base_dir, "best_params.json"), "w") as f:
             json.dump(best.params, f)
-        mlflow.log_artifact("outputs/cnn_only/best_params.json")
+        mlflow.log_artifact(os.path.join(base_dir, "best_params.json"))
 
-        # 최적 파라미터로 모델 재학습
+        # 최적 파라미터 재학습
         print("\n[최적 파라미터 재학습 시작]")
-        input_shape = (86, 14)
+
+        # input_shape 자동 추출
+        X_sample = np.load(os.path.join(base_dir, "X_cnn.npy"))
+        input_shape = X_sample.shape[1:]  # (time_steps, n_features)
+
         model = CNNOnly(
             input_shape=input_shape,
             conv1_filters=best.params["conv1_filters"],
@@ -73,13 +80,14 @@ def main():
             dropout=best.params["dropout"]
         ).to(device)
 
-        train_loader, val_loader, _ = load_data(best.params["batch_size"])
+        train_loader, val_loader, _ = load_data(best.params["batch_size"], base_dir=base_dir)
+
         loss_fn = torch.nn.BCEWithLogitsLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=best.params["lr"])
 
         for epoch in range(1, 11):
             model.train()
-            running_loss = 0.0
+            total_loss = 0.0
             for xb, yb in train_loader:
                 xb, yb = xb.to(device), yb.to(device)
                 yb = yb.view(-1, 1)
@@ -89,18 +97,19 @@ def main():
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                running_loss += loss.item()
 
-            avg_loss = running_loss / len(train_loader)
+                total_loss += loss.item()
+
+            avg_loss = total_loss / len(train_loader)
             print(f"Epoch {epoch:2d} - Train Loss: {avg_loss:.4f}")
 
-        # 학습 완료 → 모델 저장
-        model_path = "outputs/cnn_only/best_model.pt"
+        # 모델 저장
+        model_path = os.path.join(base_dir, "best_model.pt")
         torch.save(model.state_dict(), model_path)
         mlflow.log_artifact(model_path)
         print(f"\n최종 모델 저장 완료 → {model_path}")
 
-        # 최종 검증 평가 및 기록
+        # 검증 평가
         model.eval()
         preds, targets = [], []
         with torch.no_grad():
@@ -142,7 +151,7 @@ def main():
         plt.savefig("f1_score.png")
         mlflow.log_artifact("f1_score.png")
 
-        # 전체 성능 리포트 저장
+        # 전체 classification report
         with open("best_report.txt", "w") as f:
             f.write(f"Best Trial #{best.number}\n")
             f.write(f"Validation Accuracy: {acc:.4f}\n")

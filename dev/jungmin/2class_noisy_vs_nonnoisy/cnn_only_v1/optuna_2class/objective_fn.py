@@ -1,3 +1,5 @@
+import os
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Adam
@@ -9,7 +11,7 @@ from data_loader import load_data
 
 def safe_log_mlflow(trial, acc, max_retries=3, wait_sec=1):
     """
-    MLflow 기록 오류 발생 시 재시도하는 안전 로그 함수
+    MLflow 기록 실패 시 재시도하는 안전 로그 함수
     """
     acc = round(acc, 4)
     for attempt in range(max_retries):
@@ -30,8 +32,9 @@ def objective(trial, device):
     """
     Optuna 하이퍼파라미터 최적화를 위한 objective 함수
     """
+
     try:
-        # 하이퍼파라미터 탐색 범위 설정
+        # 하이퍼파라미터 탐색 공간 정의
         conv1 = trial.suggest_categorical("conv1_filters", [16, 32, 64])
         conv2 = trial.suggest_categorical("conv2_filters", [32, 64, 128])
         dense_units = trial.suggest_int("dense_units", 32, 128, step=32)
@@ -42,18 +45,22 @@ def objective(trial, device):
         print(f"\n[Trial {trial.number}] 시작")
         print(f"Params: conv1={conv1}, conv2={conv2}, dense={dense_units}, dropout={dropout}, lr={lr:.5f}, batch_size={batch_size}")
 
-        # 데이터 로딩 (경로는 data_loader 내부에서 관리)
-        train_loader, val_loader, _ = load_data(batch_size)
+        # 데이터 로딩 (scaler 적용 포함)
+        base_dir = "/app/dev/jungmin/2class_noisy_vs_nonnoisy/cnn_only_v1/outputs"
+        train_loader, val_loader, _ = load_data(batch_size=batch_size, base_dir=base_dir)
 
-        # 입력 shape 정의 (전처리에서 고정)
-        input_shape = (86, 14)
+        # 입력 shape 자동 추출
+        X_sample = np.load(os.path.join(base_dir, "X_cnn.npy"))
+        input_shape = X_sample.shape[1:]  # (time_steps, n_features)
+
+        # 모델 초기화
         model = CNNOnly(input_shape, conv1, conv2, dense_units, dropout).to(device)
 
         # 손실함수 및 옵티마이저 정의
         loss_fn = nn.BCEWithLogitsLoss()
         optimizer = Adam(model.parameters(), lr=lr)
 
-        # 학습 루프 (고정 에폭 수: 10)
+        # 학습 루프 (에폭 수 고정: 10)
         for epoch in range(1, 11):
             model.train()
             total_loss = 0.0
@@ -73,7 +80,7 @@ def objective(trial, device):
             avg_loss = total_loss / len(train_loader)
             print(f"Epoch {epoch:2d} - Train Loss: {avg_loss:.4f}")
 
-        # 검증 (validation accuracy 계산)
+        # 검증: validation accuracy 계산
         model.eval()
         preds, targets = [], []
         with torch.no_grad():
@@ -93,11 +100,10 @@ def objective(trial, device):
         acc = accuracy_score(targets, preds)
         print(f"[Trial {trial.number}] Validation Accuracy: {acc:.4f}")
 
-        # MLflow 기록 (오류 방지 안전 기록)
+        # MLflow 기록
         safe_log_mlflow(trial, acc)
 
-        # Optuna 최소화 목표 → 정확도 반대로 반환
-        return 1.0 - acc
+        return 1.0 - acc  # Optuna 최소화 문제 → (1-정확도) 반환
 
     except Exception as e:
         print(f"[Trial {trial.number}] 실패: {str(e)}")
