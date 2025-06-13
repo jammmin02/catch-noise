@@ -4,9 +4,6 @@ import torch
 import numpy as np
 import mlflow
 from sklearn.metrics import accuracy_score
-from torch.nn import BCELoss
-from torch.optim import Adam
-
 from model import CNNOnly
 from data_loader import load_data
 
@@ -15,10 +12,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ✅ MLflow 설정
 mlflow.set_tracking_uri("http://210.101.236.174:5000")
-mlflow.set_experiment("optuna_cnn_2class")  # 실험 이름도 CNN-only 버전으로
+mlflow.set_experiment("optuna_cnn_only_v2")  # v2 실험 이름으로 변경
+
+# ✅ 경로 설정
+BASE_DIR = "dev/jungmin/2class_noisy_vs_nonnoisy/cnn_only_v2"
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
 
 # ✅ 최적 파라미터 로드
-with open("outputs/cnn_only/best_params.json", "r") as f:
+param_path = os.path.join(OUTPUT_DIR, "best_params.json")
+with open(param_path, "r") as f:
     best_params = json.load(f)
 
 # ✅ 데이터 로드 (test set 평가 목적)
@@ -33,7 +35,7 @@ model = CNNOnly(
     dropout=best_params["dropout"]
 ).to(device)
 
-model_path = "outputs/cnn_only/best_model.pt"
+model_path = os.path.join(OUTPUT_DIR, "best_model.pt")
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
@@ -41,10 +43,10 @@ model.eval()
 y_true, y_pred = [], []
 with torch.no_grad():
     for xb, yb in test_loader:
-        xb = xb.to(device)
-        output = model(xb).cpu().squeeze().numpy()
-        preds = (output > 0.5).astype(int).tolist()
-        labels = yb.squeeze().numpy().astype(int).tolist()
+        xb, yb = xb.to(device), yb.to(device)
+        output = model(xb).cpu()
+        preds = torch.argmax(output, dim=1).numpy().tolist()
+        labels = yb.cpu().numpy().tolist()
 
         y_pred += preds
         y_true += labels

@@ -30,7 +30,9 @@ docker rm -f %CONTAINER_NAME% > nul 2>&1
 
 echo.
 echo 🐳 [3/3] 새 컨테이너 실행 중 (bash 진입)...
-docker run --name %CONTAINER_NAME% -it --rm ^
--v %PROJECT_ROOT%:/app ^
--w /app ^
-%IMAGE_NAME% bash
+docker run -it --rm ^
+ -v %cd%:/workspace ^
+ -p 5000:5000 -p 8888:8888 ^
+ --name %CONTAINER_NAME% ^
+ %IMAGE_NAME% bash
+

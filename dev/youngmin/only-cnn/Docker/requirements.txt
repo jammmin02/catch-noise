@@ -1,0 +1,11 @@
+numpy==1.21.6
+scipy
+librosa==0.10.0
+matplotlib
+pandas
+soundfile
+tqdm
+torch==1.9.0
+torchaudio
+onnx
+onnxruntime
