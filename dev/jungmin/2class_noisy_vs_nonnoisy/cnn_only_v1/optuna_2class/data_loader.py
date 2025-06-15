@@ -3,11 +3,10 @@ import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import joblib
 
 def stratified_split(X, y, seed=42):
-    """
-    클래스 비율을 유지한 채로 7:2:1로 데이터셋을 분할
-    """
     X_train_all, X_val_all, X_test_all = [], [], []
     y_train_all, y_val_all, y_test_all = [], [], []
 
@@ -15,12 +14,10 @@ def stratified_split(X, y, seed=42):
         idx = np.where(y == cls)[0]
         X_cls, y_cls = X[idx], y[idx]
 
-        # 1단계: temp 90%, test 10%
         X_temp, X_test, y_temp, y_test = train_test_split(
             X_cls, y_cls, test_size=0.1, random_state=seed, shuffle=True
         )
 
-        # 2단계: train 70%, val 20% (즉, temp 기준 7:2 비율)
         X_train, X_val, y_train, y_val = train_test_split(
             X_temp, y_temp, test_size=2/9, random_state=seed, shuffle=True
         )
@@ -40,31 +37,43 @@ def stratified_split(X, y, seed=42):
         return X_all[idx], y_all[idx]
 
     X_train, y_train = concat_and_shuffle(X_train_all, y_train_all, seed=seed)
-    X_val, y_val = concat_and_shuffle(X_val_all, y_val_all, seed=seed)
-    X_test, y_test = concat_and_shuffle(X_test_all, y_test_all, seed=seed)
+    X_val, y_val     = concat_and_shuffle(X_val_all, y_val_all, seed=seed)
+    X_test, y_test   = concat_and_shuffle(X_test_all, y_test_all, seed=seed)
 
     return (X_train, y_train), (X_val, y_val), (X_test, y_test)
 
-def load_data(batch_size):
-    """
-    .npy 데이터를 로드하고 stratified 7:2:1로 나누어 DataLoader 반환
-    """
-    base_dir = "/app/dev/jungmin/2class_noisy_vs_nonnoisy/cnn_only_v1/outputs"
-    X = np.load(os.path.join(base_dir, "X_cnn.npy"))  # [B, 86, 14]
+def load_data(batch_size, base_dir=None, scaler_path=None, save_scaler=True):
+    if base_dir is None:
+        base_dir = "/app/dev/jungmin/2class_noisy_vs_nonnoisy/cnn_only_v1/outputs"
+
+    X = np.load(os.path.join(base_dir, "X_cnn.npy"))
     y = np.load(os.path.join(base_dir, "y_cnn.npy"))
 
-    # stratified 분할
     (X_train, y_train), (X_val, y_val), (X_test, y_test) = stratified_split(X, y)
 
-    # 텐서 변환 (CNN을 위한 채널 차원 추가, 라벨은 BCE에 맞춰 float32 + unsqueeze)
+    # 스케일링
+    n_samples, time_steps, n_features = X_train.shape
+
+    if scaler_path and os.path.exists(scaler_path):
+        scaler = joblib.load(scaler_path)
+    else:
+        scaler = StandardScaler()
+        scaler.fit(X_train.reshape(-1, n_features))
+        if save_scaler:
+            joblib.dump(scaler, os.path.join(base_dir, "scaler_cnn.pkl"))
+
+    X_train_scaled = scaler.transform(X_train.reshape(-1, n_features)).reshape(n_samples, time_steps, n_features)
+    X_val_scaled   = scaler.transform(X_val.reshape(-1, n_features)).reshape(X_val.shape[0], time_steps, n_features)
+    X_test_scaled  = scaler.transform(X_test.reshape(-1, n_features)).reshape(X_test.shape[0], time_steps, n_features)
+
     def to_tensor(X, y):
-        X_tensor = torch.tensor(X, dtype=torch.float32).unsqueeze(1)  # [B, 1, 86, 14]
+        X_tensor = torch.tensor(X, dtype=torch.float32).unsqueeze(1)  # [B, 1, 시간, 특징]
         y_tensor = torch.tensor(y, dtype=torch.float32).unsqueeze(1)  # [B, 1]
         return TensorDataset(X_tensor, y_tensor)
 
-    train_dataset = to_tensor(X_train, y_train)
-    val_dataset   = to_tensor(X_val, y_val)
-    test_dataset  = to_tensor(X_test, y_test)
+    train_dataset = to_tensor(X_train_scaled, y_train)
+    val_dataset   = to_tensor(X_val_scaled, y_val)
+    test_dataset  = to_tensor(X_test_scaled, y_test)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader   = DataLoader(val_dataset, batch_size=batch_size)

@@ -1,3 +1,5 @@
+import os
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Adam
@@ -7,8 +9,10 @@ import time
 from model import CNNOnly
 from data_loader import load_data
 
-# ✅ MLflow 안전 로그 함수
 def safe_log_mlflow(trial, acc, max_retries=3, wait_sec=1):
+    """
+    MLflow 기록 실패 시 재시도하는 안전 로그 함수
+    """
     acc = round(acc, 4)
     for attempt in range(max_retries):
         try:
@@ -19,15 +23,18 @@ def safe_log_mlflow(trial, acc, max_retries=3, wait_sec=1):
             time.sleep(wait_sec)
             return True
         except Exception as e:
-            print(f"[⚠️ MLflow 기록 실패 - Trial {trial.number}, 시도 {attempt+1}] {e}")
+            print(f"[MLflow 기록 실패 - Trial {trial.number}, 시도 {attempt+1}] {e}")
             time.sleep(2)
-    print(f"❌ Trial {trial.number} val_accuracy 기록 실패")
+    print(f"[Trial {trial.number}] val_accuracy 기록 실패")
     return False
 
-# ✅ Optuna objective 함수
 def objective(trial, device):
+    """
+    Optuna 하이퍼파라미터 최적화를 위한 objective 함수
+    """
+
     try:
-        # 🔧 하이퍼파라미터 탐색
+        # 하이퍼파라미터 탐색 공간 정의
         conv1 = trial.suggest_categorical("conv1_filters", [16, 32, 64])
         conv2 = trial.suggest_categorical("conv2_filters", [32, 64, 128])
         dense_units = trial.suggest_int("dense_units", 32, 128, step=32)
@@ -35,35 +42,45 @@ def objective(trial, device):
         lr = trial.suggest_float("lr", 1e-4, 1e-2, log=True)
         batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
 
-        print(f"\n🚀 [Trial {trial.number}] 시작합니다.")
-        print(f"🔧 하이퍼파라미터: conv1={conv1}, conv2={conv2}, dense={dense_units}, dropout={dropout}, lr={lr:.5f}, batch_size={batch_size}")
+        print(f"\n[Trial {trial.number}] 시작")
+        print(f"Params: conv1={conv1}, conv2={conv2}, dense={dense_units}, dropout={dropout}, lr={lr:.5f}, batch_size={batch_size}")
 
-        # ✅ 데이터 로딩
-        train_loader, val_loader, _ = load_data(batch_size)
+        # 데이터 로딩 (scaler 적용 포함)
+        base_dir = "/app/dev/jungmin/2class_noisy_vs_nonnoisy/cnn_only_v1/outputs"
+        train_loader, val_loader, _ = load_data(batch_size=batch_size, base_dir=base_dir)
 
-        # ✅ 모델 정의
-        model = CNNOnly(conv1, conv2, dense_units, dropout).to(device)
-        loss_fn = nn.BCELoss()
+        # 입력 shape 자동 추출
+        X_sample = np.load(os.path.join(base_dir, "X_cnn.npy"))
+        input_shape = X_sample.shape[1:]  # (time_steps, n_features)
+
+        # 모델 초기화
+        model = CNNOnly(input_shape, conv1, conv2, dense_units, dropout).to(device)
+
+        # 손실함수 및 옵티마이저 정의
+        loss_fn = nn.BCEWithLogitsLoss()
         optimizer = Adam(model.parameters(), lr=lr)
 
-        # ✅ 학습
+        # 학습 루프 (에폭 수 고정: 10)
         for epoch in range(1, 11):
             model.train()
-            running_loss = 0.0
+            total_loss = 0.0
             for xb, yb in train_loader:
                 xb, yb = xb.to(device), yb.to(device)
                 yb = yb.view(-1, 1)
 
-                preds = model(xb)
-                loss = loss_fn(preds, yb)
+                logits = model(xb)
+                loss = loss_fn(logits, yb)
+
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                running_loss += loss.item()
-            avg_loss = running_loss / len(train_loader)
-            print(f"📘 Epoch {epoch:2d}/10 - 평균 Loss: {avg_loss:.4f}")
 
-        # ✅ 검증
+                total_loss += loss.item()
+
+            avg_loss = total_loss / len(train_loader)
+            print(f"Epoch {epoch:2d} - Train Loss: {avg_loss:.4f}")
+
+        # 검증: validation accuracy 계산
         model.eval()
         preds, targets = [], []
         with torch.no_grad():
@@ -71,21 +88,23 @@ def objective(trial, device):
                 xb, yb = xb.to(device), yb.to(device)
                 yb = yb.view(-1, 1)
 
-                output = model(xb).cpu().squeeze().numpy()
-                target_np = yb.cpu().squeeze().numpy()
-                pred_np = (output > 0.5).astype(int).tolist()
-                target_np = target_np.astype(int).tolist()
+                logits = model(xb)
+                probs = torch.sigmoid(logits).cpu().numpy().squeeze()
 
-                preds.extend(pred_np)
-                targets.extend(target_np)
+                targets_batch = yb.cpu().numpy().squeeze()
+                preds_batch = (probs > 0.5).astype(int)
+
+                preds.extend(preds_batch.tolist())
+                targets.extend(targets_batch.tolist())
 
         acc = accuracy_score(targets, preds)
-        print(f"✅ [Trial {trial.number}] 완료 - val_accuracy: {acc:.4f}")
+        print(f"[Trial {trial.number}] Validation Accuracy: {acc:.4f}")
 
-        # ✅ MLflow 로그
+        # MLflow 기록
         safe_log_mlflow(trial, acc)
-        return 1.0 - acc
+
+        return 1.0 - acc  # Optuna 최소화 문제 → (1-정확도) 반환
 
     except Exception as e:
-        print(f"❌ Trial {trial.number} 실패: {str(e)}")
+        print(f"[Trial {trial.number}] 실패: {str(e)}")
         return float("inf")
