@@ -14,18 +14,19 @@ script_dict = {
     for cat in sorted(df["category"].unique())
 }
 
-# 전역 상태 관리 (화자 이름, 현재 문장 인덱스, 문장 리스트)
+# 전역 상태
 state = {
     "idx": 0,
     "speaker": "",
     "script_lines": [],
+    "last_file_path": "",
 }
 
 # recordings 저장 디렉토리 설정
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 RECORDINGS_DIR = os.path.join(PROJECT_ROOT, "recordings")
 
-# 세션 시작 함수: 화자 이름과 카테고리를 선택하면 문장 리스트를 셔플하고 첫 문장을 반환
+# 세션 시작
 def start_session(speaker_name, category):
     speaker_name = speaker_name.strip()
     if not speaker_name:
@@ -34,11 +35,13 @@ def start_session(speaker_name, category):
     state["speaker"] = speaker_name
     state["idx"] = 0
     state["script_lines"] = script_dict[category][:]
-    random.shuffle(state["script_lines"])  # 문장 랜덤 셔플
+    random.shuffle(state["script_lines"])
+    total = len(state["script_lines"])
+    progress = f"1/{total} 문장 완료"
 
-    return state["script_lines"][0], f"{speaker_name}님, '{category}' 카테고리로 시작합니다!"
+    return state["script_lines"][0], f"{speaker_name}님, '{category}' 카테고리로 시작합니다. {progress}"
 
-# 녹음 데이터를 파일로 저장하는 함수
+# 녹음 저장
 def save_recording(audio, speaker):
     if audio is None or not speaker.strip():
         return "녹음이 없거나 이름이 없습니다."
@@ -47,49 +50,66 @@ def save_recording(audio, speaker):
     os.makedirs(speaker_dir, exist_ok=True)
 
     filename = os.path.join(speaker_dir, f"{str(state['idx']+1).zfill(3)}.wav")
-    sf.write(filename, audio[1], audio[0])  # audio = (샘플레이트, numpy 배열)
+    sf.write(filename, audio[1], audio[0])
+    state["last_file_path"] = filename
 
-    return f"저장 완료: {filename}"
+    total = len(state["script_lines"])
+    progress = f"{state['idx']+1}/{total} 문장 완료"
+    return f"저장 완료: {filename} ({progress})"
 
-# 다음 문장으로 이동하는 함수
+# 다음 문장
 def next_line():
     if state["idx"] + 1 < len(state["script_lines"]):
         state["idx"] += 1
-        return state["script_lines"][state["idx"]], ""
+        total = len(state["script_lines"])
+        progress = f"{state['idx']+1}/{total} 문장 완료"
+        return state["script_lines"][state["idx"]], progress
     else:
         return "모든 문장을 다 읽었습니다.", "끝!"
 
-# Gradio UI 구성
-with gr.Blocks() as demo:
-    # 페이지 타이틀 변경 (HTML 스크립트)
-    gr.HTML("""
-    <script>
-      document.addEventListener("DOMContentLoaded", function() {
-        setTimeout(() => {
-          document.querySelector("title").innerText = "데이터 수집 시스템 (Gradio)";
-        }, 500);
-      });
-    </script>
-    """)
+# 마지막 저장 파일 삭제
+def delete_last_file():
+    path = state.get("last_file_path", "")
+    if os.path.exists(path):
+        os.remove(path)
+        return f"삭제 완료: {os.path.basename(path)}"
+    else:
+        return "삭제할 파일이 없습니다."
 
+# Gradio UI
+with gr.Blocks() as demo:
+    # 페이지 제목
     gr.Markdown("## 데이터 수집 시스템 (Gradio)")
 
+    # 사용자 정보 입력
     with gr.Row():
         name = gr.Textbox(label="이름을 입력하세요", placeholder="예: 홍길동")
         category = gr.Dropdown(choices=list(script_dict.keys()), label="카테고리 선택")
 
+    # 문장 표시 및 상태 출력
     start_btn = gr.Button("기록 시작")
     line_text = gr.Textbox(label="문장", interactive=False)
     status = gr.Textbox(label="상태", interactive=False)
 
+    # 오디오 녹음 입력
     audio_input = gr.Audio(type="numpy", label="녹음하기")
-    save_btn = gr.Button("녹음 저장")
-    next_btn = gr.Button("다음 문장으로")
 
-    # 버튼 이벤트 연결
+    # 저장 및 다음 버튼
+    with gr.Row():
+        save_btn = gr.Button("녹음 저장")
+        next_btn = gr.Button("다음 문장으로")
+
+    # 최근 녹음 재생 및 삭제 버튼
+    with gr.Row():
+        playback = gr.Audio(label="최근 녹음 재생", interactive=False)
+        delete_btn = gr.Button("최근 녹음 삭제")
+
+    # 기능 연결
     start_btn.click(start_session, inputs=[name, category], outputs=[line_text, status])
     save_btn.click(save_recording, inputs=[audio_input, name], outputs=status)
     next_btn.click(next_line, outputs=[line_text, status])
+    save_btn.click(lambda a: a, inputs=[audio_input], outputs=playback)
+    delete_btn.click(delete_last_file, outputs=status)
 
-# 애플리케이션 실행
+# 실행
 demo.launch()
