@@ -30,7 +30,7 @@ RECORDINGS_DIR = os.path.join(PROJECT_ROOT, "recordings")
 def start_session(speaker_name, category):
     speaker_name = speaker_name.strip()
     if not speaker_name:
-        return "", "이름을 입력해주세요."
+        return "", "이름을 선택해주세요."
 
     state["speaker"] = speaker_name
     state["idx"] = 0
@@ -78,28 +78,28 @@ def delete_last_file():
 
 # Gradio UI
 with gr.Blocks() as demo:
-    # 페이지 제목
     gr.Markdown("## 데이터 수집 시스템 (Gradio)")
 
-    # 사용자 정보 입력
+    # 이름과 카테고리 선택 드롭다운
     with gr.Row():
-        name = gr.Textbox(label="이름을 입력하세요", placeholder="예: 홍길동")
+        name = gr.Dropdown(
+            choices=["박정민", "김효찬", "배영민", "아즈키", "이현우", "이승혁"],
+            label="이름을 선택하세요"
+        )
         category = gr.Dropdown(choices=list(script_dict.keys()), label="카테고리 선택")
 
-    # 문장 표시 및 상태 출력
+    # 세션 시작 및 상태
     start_btn = gr.Button("기록 시작")
     line_text = gr.Textbox(label="문장", interactive=False)
     status = gr.Textbox(label="상태", interactive=False)
 
-    # 오디오 녹음 입력
+    # 녹음
     audio_input = gr.Audio(type="numpy", label="녹음하기")
 
-    # 저장 및 다음 버튼
     with gr.Row():
         save_btn = gr.Button("녹음 저장")
         next_btn = gr.Button("다음 문장으로")
 
-    # 최근 녹음 재생 및 삭제 버튼
     with gr.Row():
         playback = gr.Audio(label="최근 녹음 재생", interactive=False)
         delete_btn = gr.Button("최근 녹음 삭제")
