@@ -49,7 +49,7 @@ history = model.fit(
     callbacks=callbacks
 )
 
-print("✅ 모델 저장 완료:", model_path)
+print("모델 저장 완료:", model_path)
 
 # 6. 평가
 pred = model.predict(x_val)
@@ -57,7 +57,7 @@ pred_label = (pred > 0.5).astype("float32")
 acc = accuracy_score(y_val, pred_label)
 cm = confusion_matrix(y_val, pred_label)
 
-print(f"\n🎯 Accuracy: {acc:.4f}")
+print(f"\nAccuracy: {acc:.4f}")
 print("Confusion Matrix:\n", cm)
 
 # 7. 혼동 행렬 시각화
@@ -81,7 +81,7 @@ plt.ylabel("True Label")
 plt.xlabel("Predicted Label")
 plt.tight_layout()
 plt.savefig("outputs/confusion_matrix_h5.png")
-print("✅ 혼동 행렬 저장 완료: outputs/confusion_matrix_h5.png")
+print("혼동 행렬 저장 완료: outputs/confusion_matrix_h5.png")
 
 # 8. 학습 곡선 시각화 (정확도 & 손실)
 plt.figure(figsize=(10, 4))
@@ -106,4 +106,4 @@ plt.legend()
 
 plt.tight_layout()
 plt.savefig("outputs/train_val_graphs.png")
-print("✅ 학습 그래프 저장 완료: outputs/train_val_graphs.png")
+print("학습 그래프 저장 완료: outputs/train_val_graphs.png")

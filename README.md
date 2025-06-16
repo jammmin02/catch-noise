@@ -8,50 +8,50 @@ AI를 활용해 교실 소음을 실시간으로 분석하고, 학습을 방해�
 
 ## 👥 팀원 소개
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <img src="https://github.com/jammmin02.png" width="100px;" alt="박정민"/><br />
-        <sub><b>박정민</b></sub><br />
-        팀장<br />
-        <a href="https://github.com/jammmin02" target="_blank">@jammmin02</a>
-      </td>
-      <td align="center">
-        <img src="https://github.com/HyoChan1117.png" width="100px;" alt="김효찬"/><br />
-        <sub><b>김효찬</b></sub><br />
-        팀원<br />
-        <a href="https://github.com/HyoChan1117" target="_blank">@HyoChan1117</a>
-      </td>
-      <td align="center">
-        <img src="https://github.com/youngmin109.png" width="100px;" alt="배영민"/><br />
-        <sub><b>배영민</b></sub><br />
-        팀원<br />
-        <a href="https://github.com/youngmin109" target="_blank">@youngmin109</a>
-      </td>
-      <td align="center">
-        <img src="https://github.com/gould7789.png" width="100px;" alt="이현우"/><br />
-        <sub><b>이현우</b></sub><br />
-        팀원<br />
-        <a href="https://github.com/gould7789" target="_blank">@gould7789</a>
-      </td>
-      <td align="center">
-        <img src="https://github.com/Azuking69.png" width="100px;" alt="아즈키"/><br />
-        <sub><b>아즈키</b></sub><br />
-        팀원<br />
-        <a href="https://github.com/Azuking69" target="_blank">@Azuking69</a>
-      </td>
-      <td align="center">
-        <img src="https://github.com/HSeung03.png" width="100px;" alt="이승혁"/><br />
-        <sub><b>이승혁</b></sub><br />
-        팀원<br />
-        <a href="https://github.com/HSeung03" target="_blank">@HSeung03</a>
-      </td>
-    </tr>
-  </table>
-</div>
+<table>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/jammmin02.png" width="100px;" alt="박정민"/><br />
+      <sub><b>박정민</b></sub><br />
+      팀장<br />
+      <a href="https://github.com/jammmin02" target="_blank">@jammmin02</a>
+    </td>
+    <td align="center">
+      <img src="https://github.com/HyoChan1117.png" width="100px;" alt="김효찬"/><br />
+      <sub><b>김효찬</b></sub><br />
+      팀원<br />
+      <a href="https://github.com/HyoChan1117" target="_blank">@HyoChan1117</a>
+    </td>
+    <td align="center">
+      <img src="https://github.com/youngmin109.png" width="100px;" alt="배영민"/><br />
+      <sub><b>배영민</b></sub><br />
+      팀원<br />
+      <a href="https://github.com/youngmin109" target="_blank">@youngmin109</a>
+    </td>
+    <td align="center">
+      <img src="https://github.com/gould7789.png" width="100px;" alt="이현우"/><br />
+      <sub><b>이현우</b></sub><br />
+      팀원<br />
+      <a href="https://github.com/gould7789" target="_blank">@gould7789</a>
+    </td>
+    <td align="center">
+      <img src="https://github.com/Azuking69.png" width="100px;" alt="아즈키"/><br />
+      <sub><b>아즈키</b></sub><br />
+      팀원<br />
+      <a href="https://github.com/Azuking69" target="_blank">@Azuking69</a>
+    </td>
+    <td align="center">
+      <img src="https://github.com/HSeung03.png" width="100px;" alt="이승혁"/><br />
+      <sub><b>이승혁</b></sub><br />
+      팀원<br />
+      <a href="https://github.com/HSeung03" target="_blank">@HSeung03</a>
+    </td>
+  </tr>
+</table>
+
 
 <br>
+
 ## 📂 REPOSITORY 구 조 도
 
 <img src="https://github.com/HyoChan1117/HyoChan1117/raw/master/team_project-structure.drawio.png" alt="Project Structure" width="80%">
@@ -115,6 +115,39 @@ AI를 활용해 교실 소음을 실시간으로 분석하고, 학습을 방해�
 | 라이브러리 | Librosa, OpenCV, Matplotlib |
 | 특징 추출 | MFCC, ZCR |
 | 모델 구조 | CNN2D + LSTM (Sequential Classification) |
+
+<br>
+
+## 🧩 팀 공통 개발 환경 & 라이브러리 버전 / Team-wide Dev Environment & Library Versions
+
+| 항목 | 내용 |
+|------|------|
+| **기반 이미지** | `pytorch/pytorch:1.9.0-cuda10.2-cudnn7-devel`<br>`nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu22.04` |
+| **CUDA 버전** | `10.2`, `11.7.1` (사용 환경에 따라 선택) |
+| **Python 버전** | `Python 3.6` (기본 설치 후 `/usr/bin/python` 링크 연결) |
+| **주요 시스템 패키지** | `ffmpeg`, `libsndfile1`, `portaudio19-dev`, `libsm6`, `libxrender-dev`, `cmake`, `git` 등 |
+| **추가 키 설정** | NVIDIA CUDA GPG 키 수동 등록 |
+| **기본 실행 명령어** | `CMD ["bash"]` |
+
+### 🔧 PyTorch 생태계 라이브러리
+
+| 패키지 | 버전 | 주석 |
+|--------|-------|------|
+| `torch` | `1.13.1+cu117` | CUDA 11.7 대응 버전 |
+| `torchvision` | `0.14.1+cu117` | |
+| `torchaudio` | `0.13.1` | |
+| `torch` | `1.9.0` | (추가로 명시됨) |
+| `torchvision` | `0.10.0` | (추가로 명시됨) |
+
+### 📦 주요 requirements.txt 패키지 요약
+
+| 범주 | 패키지 | 버전 |
+|------|--------|------|
+| **기초 라이브러리** | `numpy`, `pandas`, `scikit-learn` | `1.22.4`, `1.3.5`, `1.0.2` |
+| **시각화** | `matplotlib`, `seaborn`, `pyqt5`, `pyqtgraph` | `3.5.2`, `0.11.2`, 기타 |
+| **오디오 처리** | `librosa`, `soundfile`, `pyaudio`, `scipy`, `sounddevice` | `0.9.2`, `0.10.3.post1`, `0.4.6`, 기타 |
+| **실험 관리/최적화** | `mlflow`, `optuna`, `tqdm` | `1.30.0`, `3.0.3`, `4.64.1` |
+| **기타 유틸** | `imageio`, `opencv-python`, `Cython<3` | `2.19.3`, 등 |
 
 <br>
 

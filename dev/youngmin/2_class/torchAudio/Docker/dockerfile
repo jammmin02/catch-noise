@@ -1,0 +1,25 @@
+# Docker/Dockerfile.torchaudio
+
+FROM python:3.9-slim
+
+# 작업 디렉토리
+WORKDIR /workspace
+
+# 오디오, 시각화에 필요한 패키지 설치
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# requirements 복사 및 설치
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# 프로젝트 파일 복사 (원하는 경우만)
+COPY ../ scripts/
+COPY ../ data/
+
+# bash로 진입하게 설정
+CMD ["/bin/bash"]
+
+# docker run -it --rm -v ${PWD}/../scripts:/workspace/scripts -v ${PWD}/../data:/workspace/data -v ${PWD}/../:/workspace/torchAudio torchaudio

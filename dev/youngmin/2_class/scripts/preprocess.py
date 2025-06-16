@@ -49,7 +49,7 @@ def process_all_audio(base_path, segment_duration=2.0, sr=22050):
             try:
                 y_raw, _ = librosa.load(fpath, sr=sr)
             except Exception as e:
-                print(f"⚠️ Failed to load {fname}: {e}")
+                print(f"Failed to load {fname}: {e}")
                 continue
 
             seg_len = int(sr * segment_duration)
@@ -94,6 +94,6 @@ def process_all_audio(base_path, segment_duration=2.0, sr=22050):
 # 4. 메인 실행 블록
 if __name__ == "__main__":
     base_dir = "data"  # 루트 디렉토리 기준
-    print("🎧 Starting preprocessing...")
+    print("Starting preprocessing...")
     X, y = process_all_audio(base_dir)
-    print(f"✅ Done. X shape: {X.shape}, y shape: {y.shape}")
+    print(f"Done. X shape: {X.shape}, y shape: {y.shape}")

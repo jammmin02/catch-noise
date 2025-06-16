@@ -35,7 +35,7 @@ def extract_features(y_audio):
     return features.T[np.newaxis, ..., np.newaxis]
 
 # 실시간 예측
-print("🎙️ 실시간 예측 시작 (Ctrl+C로 종료)")
+print("실시간 예측 시작 (Ctrl+C로 종료)")
 try:
     while True:
         audio = sd.rec(int(segment_duration * sr), samplerate=sr, channels=1, dtype='float32')
@@ -52,16 +52,16 @@ try:
         plt.clf()
         plt.subplot(2, 1, 1)
         librosa.display.waveshow(audio, sr=sr)
-        plt.title("🎧 입력 음성 파형")
+        plt.title("입력 음성 파형")
 
         plt.subplot(2, 1, 2)
         bars = plt.bar(class_names, [1 - pred[0], pred[0]], color=['blue', 'red'])
         bars[label_idx].set_color('green')
         plt.ylim([0, 1])
-        plt.title(f"🔊 예측 결과: {label} ({confidence:.2f})")
+        plt.title(f"예측 결과: {label} ({confidence:.2f})")
 
         plt.pause(0.1)
 
 except KeyboardInterrupt:
-    print("\n🛑 실시간 예측 종료됨.")
+    print("\n실시간 예측 종료됨.")
     plt.close()

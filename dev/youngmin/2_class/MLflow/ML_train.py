@@ -125,4 +125,4 @@ with mlflow.start_run():
     model.save(model_path)
     mlflow.log_artifact(model_path)
 
-    print("✅ MLflow 실험 기록 완료")
+    print("MLflow 실험 기록 완료")

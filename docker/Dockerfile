@@ -1,21 +1,21 @@
-# ✅ Python 3.8 기반 이미지 (slim 버전으로 용량 최소화)
-FROM python:3.8-slim
+# ✅ CUDA 11.7 + PyTorch 1.13.1 (Windows는 linux/amd64로 대체 예시)
+FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu22.04
 
-# ✅ 시스템 패키지 설치
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     git \
     build-essential \
-    libsndfile1 \
-    && apt-get clean
+    python3 \
+    python3-pip \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# ✅ 작업 디렉토리
 WORKDIR /app
 COPY . /app
 
-# ✅ pip 업그레이드 및 requirements 설치
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --upgrade pip
 
-# ✅ 기본 명령어
+RUN pip3 install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
+
+RUN pip3 install -r docker/requirements.txt
+
 CMD ["bash"]
