@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-# ✅ 네가 학습한 그대로 CNN+LSTM 모델 정의
+# CNN+LSTM 모델 정의
 class CNN_LSTM(nn.Module):
     def __init__(self, input_height=86, input_width=14):
         super(CNN_LSTM, self).__init__()
@@ -34,15 +34,15 @@ class CNN_LSTM(nn.Module):
         x = self.sigmoid(self.fc2(x))
         return x
 
-# ✅ 모델 생성 및 weight load
+# 모델 생성 및 weight load
 model = CNN_LSTM()
 model.load_state_dict(torch.load("hyochan/pytorch/pc/dataset/outputs/cnn_lstm/cnn_lstm_model.pth"))
 model.eval()
 
-# ✅ Dummy Input 생성 (실제 입력과 동일)
+# Dummy Input 생성 (실제 입력과 동일)
 dummy_input = torch.randn(1, 1, 86, 14)
 
-# ✅ ONNX 변환
+# ONNX 변환
 torch.onnx.export(
     model,
     dummy_input,
@@ -53,4 +53,4 @@ torch.onnx.export(
     opset_version=13
 )
 
-print("✅ ONNX 변환 성공!")
+print("ONNX 변환 성공!")

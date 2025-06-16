@@ -9,14 +9,14 @@ from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
-# ✅ MLflow 설정
+# MLflow 설정
 now = datetime.now().strftime("%Y%m%d_%H%M%S")
 experiment_name = f"{now}_hyochan_train_cnn_lstm_2class"
 mlflow.set_tracking_uri("http://210.101.236.174:5000")
 mlflow.set_experiment(experiment_name)
 os.environ["MLFLOW_ARTIFACT_URI"] = "file:/app/mlruns"
 
-# ✅ 경로 설정
+# 경로 설정
 base_dir = "hyochan/pytorch/pc/dataset/outputs/cnn_lstm"
 os.makedirs(base_dir, exist_ok=True)
 X_path = os.path.join(base_dir, "X_lstm.npy")
@@ -27,16 +27,16 @@ confusion_path = os.path.join(base_dir, "confusion_matrix.png")
 confidence_plot_path = os.path.join(base_dir, "confidence_hist.png")
 label_names = ['non_noisy', 'noisy']
 
-# ✅ 데이터 로드
+# 데이터 로드
 X = np.load(X_path)
 y = np.load(y_path)
 X = X[..., np.newaxis]
 
-# ✅ 데이터 분할
+# 데이터 분할
 X_temp, X_test, y_temp, y_test = train_test_split(X, y, test_size=0.1, stratify=y, random_state=42)
 X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=2/9, stratify=y_temp, random_state=42)
 
-# ✅ Tensor 변환 (PyTorch → (batch, channel, height, width))
+# Tensor 변환 (PyTorch → (batch, channel, height, width))
 X_train = torch.tensor(X_train, dtype=torch.float32).permute(0, 3, 1, 2)
 X_val = torch.tensor(X_val, dtype=torch.float32).permute(0, 3, 1, 2)
 X_test = torch.tensor(X_test, dtype=torch.float32).permute(0, 3, 1, 2)
@@ -44,7 +44,7 @@ y_train = torch.tensor(y_train, dtype=torch.float32)
 y_val = torch.tensor(y_val, dtype=torch.float32)
 y_test = torch.tensor(y_test, dtype=torch.float32)
 
-# ✅ CNN+LSTM 모델 정의
+# CNN+LSTM 모델 정의
 class CNN_LSTM(nn.Module):
     def __init__(self, input_height, input_width):
         super(CNN_LSTM, self).__init__()
@@ -79,7 +79,7 @@ class CNN_LSTM(nn.Module):
         x = self.sigmoid(self.fc2(x))
         return x
 
-# ✅ 학습 실행
+# 학습 실행
 with mlflow.start_run():
     model = CNN_LSTM(X_train.shape[2], X_train.shape[3])
     criterion = nn.BCELoss()
@@ -119,7 +119,7 @@ with mlflow.start_run():
 
         print(f"Epoch {epoch+1:02d} - Train Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}, Train Acc: {train_acc:.4f}, Val Acc: {val_acc:.4f}")
 
-    # ✅ 테스트 평가
+    # 테스트 평가
     model.eval()
     with torch.no_grad():
         y_pred = model(X_test).squeeze()
@@ -130,11 +130,11 @@ with mlflow.start_run():
     mlflow.log_metrics({"test_accuracy": test_acc, "test_loss": test_loss})
     print(f"Test accuracy: {test_acc:.4f} / Test loss: {test_loss:.4f}")
 
-    # ✅ 모델 저장
+    # 모델 저장
     torch.save(model.state_dict(), model_save_path)
     mlflow.log_artifact(model_save_path)
 
-    # ✅ 학습 곡선 시각화
+    # 학습 곡선 시각화
     plt.figure(figsize=(12, 5))
     plt.subplot(1, 2, 1)
     plt.plot(train_accuracies, label='Train Acc', marker='o')
@@ -154,7 +154,7 @@ with mlflow.start_run():
     mlflow.log_artifact(plot_save_path)
     plt.close()
 
-    # ✅ 혼동행렬
+    # 혼동행렬
     cm = confusion_matrix(y_test.int(), y_pred_classes)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label_names)
     disp.plot(cmap='Blues')
@@ -164,7 +164,7 @@ with mlflow.start_run():
     mlflow.log_artifact(confusion_path)
     plt.close()
 
-    # ✅ Confidence 분포
+    # Confidence 분포
     confidences = y_pred.numpy().flatten()
     plt.figure(figsize=(8, 5))
     plt.hist(confidences, bins=20, color='skyblue', edgecolor='black')
@@ -177,4 +177,4 @@ with mlflow.start_run():
     mlflow.log_artifact(confidence_plot_path)
     plt.close()
 
-print(f"✅ 모델 학습 및 MLflow experiment '{experiment_name}' 완료!")
+print(f"모델 학습 및 MLflow experiment '{experiment_name}' 완료!")

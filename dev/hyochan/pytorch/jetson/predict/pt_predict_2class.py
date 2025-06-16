@@ -5,7 +5,7 @@ import sounddevice as sd
 import librosa
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')  # ✅ Jetson: headless 호환성 강화
+matplotlib.use('Agg')  # Jetson: headless 호환성 강화
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -21,10 +21,10 @@ hop_length = 512
 max_len = 86
 class_names = ['non_noisy', 'noisy']
 
-# ✅ 모델 경로 (Jetson 내 컨테이너 경로 기준)
+# 모델 경로 (Jetson 내 컨테이너 경로 기준)
 model_path = "/app/model/cnn_lstm_model.pth"
 
-# ✅ CNN+LSTM 모델 정의 (PC와 동일 구조)
+# CNN+LSTM 모델 정의 (PC와 동일 구조)
 class CNN_LSTM(nn.Module):
     def __init__(self, input_height, input_width):
         super(CNN_LSTM, self).__init__()
@@ -58,7 +58,7 @@ class CNN_LSTM(nn.Module):
         x = self.sigmoid(self.fc2(x))
         return x
 
-# ✅ 모델 초기화 및 로드
+# 모델 초기화 및 로드
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = CNN_LSTM(input_height=max_len, input_width=n_mfcc + 1)
 model.load_state_dict(torch.load(model_path, map_location=device))
