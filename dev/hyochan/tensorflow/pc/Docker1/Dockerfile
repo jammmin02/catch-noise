@@ -1,4 +1,4 @@
-# ✅ CUDA 11.8 + TensorFlow 2.11 (x86_64 용)
+# CUDA 11.8 + TensorFlow 2.11 (x86_64 용)
 FROM tensorflow/tensorflow:2.11.0-gpu
 
 RUN apt-get update && apt-get install -y \

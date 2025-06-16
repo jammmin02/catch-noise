@@ -3,7 +3,7 @@ import sounddevice as sd
 import librosa
 import numpy as np
 import matplotlib
-matplotlib.use('TkAgg')  # ✅ 안정적인 GUI 백엔드 사용 (Windows 추천)
+matplotlib.use('TkAgg')  # 안정적인 GUI 백엔드 사용 (Windows 추천)
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -19,10 +19,10 @@ hop_length = 512
 max_len = 86
 class_names = ['non_noisy', 'noisy']
 
-# ✅ PyTorch 모델 경로
+# PyTorch 모델 경로
 model_path = f"C:/Users/USER/.aCode/catch-noise/dev/hyochan/pytorch/pc/dataset/outputs/cnn_lstm/cnn_lstm_model.pth"
 
-# ✅ CNN+LSTM 모델 정의 (학습 때와 동일하게 유지)
+# CNN+LSTM 모델 정의 (학습 때와 동일하게 유지)
 class CNN_LSTM(nn.Module):
     def __init__(self, input_height, input_width):
         super(CNN_LSTM, self).__init__()
@@ -56,7 +56,7 @@ class CNN_LSTM(nn.Module):
         x = self.sigmoid(self.fc2(x))
         return x
 
-# ✅ 모델 초기화 및 로드
+# 모델 초기화 및 로드
 model = CNN_LSTM(input_height=max_len, input_width=n_mfcc + 1)
 model.load_state_dict(torch.load(model_path, map_location='cpu'))
 model.eval()
@@ -70,7 +70,7 @@ def find_input_device(name_keyword=None):
             return idx, dev["max_input_channels"]
     raise RuntimeError("Microphone not found.")
 
-# ✅ 여기서 디바이스 수동으로 잡아라 (자동탐색 실패 대비)
+# 여기서 디바이스 수동으로 잡아라 (자동탐색 실패 대비)
 device_index, device_channels = find_input_device()
 
 # === 실시간 변수 초기화 ===
@@ -152,7 +152,7 @@ stream = sd.InputStream(
 )
 stream.start()
 
-# ✅ 데몬 쓰레드 제거 → 안정성 상승
+# 데몬 쓰레드 제거 → 안정성 상승
 thread = threading.Thread(target=predict_thread)
 thread.start()
 

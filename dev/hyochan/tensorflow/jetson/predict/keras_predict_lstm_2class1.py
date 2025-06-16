@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import threading
 import time
-import onnxruntime as ort  # ✅ ONNX instead of Keras
+import onnxruntime as ort  # ONNX instead of Keras
 
 # === 설정 ===
 mic_sr = 44100
@@ -18,7 +18,7 @@ max_len = 86
 class_names = ['non_noisy', 'noisy']
 model_path = "hyochan/jetson_predict/cnn_lstm_model.onnx"
 
-# ✅ ONNX 모델 로딩
+# ONNX 모델 로딩
 session = ort.InferenceSession(model_path)
 input_name = session.get_inputs()[0].name
 output_name = session.get_outputs()[0].name
@@ -86,7 +86,7 @@ def predict_thread():
         time.sleep(1.0)
         audio_seg = rolling_audio[-segment_len:]
         x = extract_features(audio_seg)
-        x = x.astype(np.float32)  # ✅ ONNX requires float32
+        x = x.astype(np.float32)  # ONNX requires float32
         ort_out = session.run([output_name], {input_name: x})[0]
         pred = ort_out[0]  # shape (2,)
         p = float(pred[0])  # index 1 = noisy

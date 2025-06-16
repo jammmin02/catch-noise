@@ -1,4 +1,4 @@
-# ✅ Jetson Orin / JetPack 5.1.3 (L4T 35.3.1 기준)
+# Jetson Orin / JetPack 5.1.3 (L4T 35.3.1 기준)
 FROM nvcr.io/nvidia/l4t-pytorch:r35.3.1-pth1.13-py3
 
 # 시스템 패키지 설치
