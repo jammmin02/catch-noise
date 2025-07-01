@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  mlflow:
+    build: ./mlflow_server
+    container_name: noise-mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/app/mlruns
+      - ./mlartifacts:/app/mlartifacts
+    networks:
+      - noise-net
+
+  trainer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: noise-trainer
+    volumes:
+      - .:/app
+      - ./mlruns:/app/mlruns
+      - ./mlartifacts:/app/mlartifacts
+      - ./dataset:/app/dataset
+      - ./model:/app/model
+      - ./features:/app/features
+    environment:
+      - MLFLOW_TRACKING_URI=http://210.101.236.174:5000
+    networks:
+      - noise-net
+    stdin_open: true
+    tty: true
+
+networks:
+  noise-net:
+    driver: bridge
