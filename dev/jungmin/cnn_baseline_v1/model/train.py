@@ -52,7 +52,7 @@ def main():
         mlflow.log_param("epochs", epochs)
 
         # 데이터셋 및 DataLoader 준비
-        label_map = {"voice": 0, "machine": 1, "ambient": 2, "cough": 3, "movement": 4}
+        label_map = {"coughs": 0, "laugh": 1, "natural": 2, "person": 3}
         dataset = FeatureDataset("./dataset/processed", "./dataset/labels.csv", label_map)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
