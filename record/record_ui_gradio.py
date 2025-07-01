@@ -14,7 +14,7 @@ script_dict = {
     for cat in sorted(df["category"].unique())
 }
 
-# 전역 상태 관리
+# 전역 상태
 state = {
     "idx": 0,
     "speaker": "",
@@ -22,16 +22,15 @@ state = {
     "last_file_path": "",
 }
 
-# 녹음 파일 저장 디렉토리 설정
+# recordings 저장 디렉토리 설정
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 RECORDINGS_DIR = os.path.join(PROJECT_ROOT, "recordings")
-
 
 # 세션 시작
 def start_session(speaker_name, category):
     speaker_name = speaker_name.strip()
     if not speaker_name:
-        return "", "이름을 입력해주세요."
+        return "", "이름을 선택해주세요."
 
     state["speaker"] = speaker_name
     state["idx"] = 0
@@ -41,7 +40,6 @@ def start_session(speaker_name, category):
     progress = f"1/{total} 문장 완료"
 
     return state["script_lines"][0], f"{speaker_name}님, '{category}' 카테고리로 시작합니다. {progress}"
-
 
 # 녹음 저장
 def save_recording(audio, speaker):
@@ -59,8 +57,7 @@ def save_recording(audio, speaker):
     progress = f"{state['idx']+1}/{total} 문장 완료"
     return f"저장 완료: {filename} ({progress})"
 
-
-# 다음 문장으로 이동
+# 다음 문장
 def next_line():
     if state["idx"] + 1 < len(state["script_lines"]):
         state["idx"] += 1
@@ -70,8 +67,7 @@ def next_line():
     else:
         return "모든 문장을 다 읽었습니다.", "끝!"
 
-
-# 마지막 파일 삭제
+# 마지막 저장 파일 삭제
 def delete_last_file():
     path = state.get("last_file_path", "")
     if os.path.exists(path):
@@ -80,21 +76,11 @@ def delete_last_file():
     else:
         return "삭제할 파일이 없습니다."
 
-
 # Gradio UI
 with gr.Blocks() as demo:
-    gr.HTML("""
-    <script>
-      document.addEventListener("DOMContentLoaded", function() {
-        setTimeout(() => {
-          document.querySelector("title").innerText = "데이터 수집 시스템 (Gradio)";
-        }, 500);
-      });
-    </script>
-    """)
-
     gr.Markdown("## 데이터 수집 시스템 (Gradio)")
 
+    # 이름과 카테고리 선택 드롭다운
     with gr.Row():
         name = gr.Dropdown(
             choices=["박정민", "김효찬", "배영민", "아즈키", "이현우", "이승혁"],
@@ -102,10 +88,12 @@ with gr.Blocks() as demo:
         )
         category = gr.Dropdown(choices=list(script_dict.keys()), label="카테고리 선택")
 
+    # 세션 시작 및 상태
     start_btn = gr.Button("기록 시작")
     line_text = gr.Textbox(label="문장", interactive=False)
     status = gr.Textbox(label="상태", interactive=False)
 
+    # 녹음
     audio_input = gr.Audio(type="numpy", label="녹음하기")
 
     with gr.Row():
@@ -116,10 +104,12 @@ with gr.Blocks() as demo:
         playback = gr.Audio(label="최근 녹음 재생", interactive=False)
         delete_btn = gr.Button("최근 녹음 삭제")
 
+    # 기능 연결
     start_btn.click(start_session, inputs=[name, category], outputs=[line_text, status])
     save_btn.click(save_recording, inputs=[audio_input, name], outputs=status)
     next_btn.click(next_line, outputs=[line_text, status])
     save_btn.click(lambda a: a, inputs=[audio_input], outputs=playback)
     delete_btn.click(delete_last_file, outputs=status)
 
+# 실행
 demo.launch()
