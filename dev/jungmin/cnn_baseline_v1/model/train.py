@@ -21,8 +21,12 @@ class FeatureDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
+        """
+        한 샘플의 특징 벡터와 라벨 반환
+        - 특징 shape: (1, feature_dim, time_steps)
+        - 라벨: 정수 인덱스
+        """
         row = self.df.iloc[idx]
-        # .npy 특징 로드 및 torch tensor 변환 (채널 차원 추가)
         feature = np.load(os.path.join(self.data_dir, row["filename"].replace(".wav", ".npy")))
         feature = torch.tensor(feature, dtype=torch.float32).unsqueeze(0)  # (1, feat, time)
         label = self.label_map[row["label"]]
@@ -31,8 +35,8 @@ class FeatureDataset(Dataset):
 def main():
     """
     CNN 분류기 학습 루프
-    - DataLoader, 모델, 손실함수, 옵티마이저 설정
-    - epoch 단위 학습 및 MLflow 로깅
+    - CPU 기반 학습
+    - 손실 및 정확도 로그 기록
     """
     mlflow.set_tracking_uri("http://mlflow:5000")
     with mlflow.start_run(run_name="cnn_baseline_train"):
@@ -42,18 +46,21 @@ def main():
         epochs = 20
         input_channels = 1
 
+        # 파라미터 MLflow 기록
         mlflow.log_param("batch_size", batch_size)
         mlflow.log_param("learning_rate", lr)
         mlflow.log_param("epochs", epochs)
 
         # 데이터셋 및 DataLoader 준비
-        label_map = {"voice":0, "machine":1, "ambient":2, "cough":3, "movement":4}
+        label_map = {"voice": 0, "machine": 1, "ambient": 2, "cough": 3, "movement": 4}
         dataset = FeatureDataset("./dataset/processed", "./dataset/labels.csv", label_map)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-        # 모델 및 학습 설정
-        model = CNNClassifier(input_channels=input_channels)
-        model = model.cuda()
+        # CPU 디바이스 고정
+        device = torch.device("cpu")
+
+        # 모델 초기화
+        model = CNNClassifier(input_channels=input_channels).to(device)
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -66,8 +73,8 @@ def main():
             total = 0
 
             for X, y in loader:
-                X = X.cuda()
-                y = y.cuda()
+                X = X.to(device)
+                y = y.to(device)
 
                 optimizer.zero_grad()
                 outputs = model(X)
@@ -75,7 +82,7 @@ def main():
                 loss.backward()
                 optimizer.step()
 
-                # 손실 및 정확도 집계
+                # 손실 및 정확도 계산
                 total_loss += loss.item() * X.size(0)
                 _, preds = torch.max(outputs, 1)
                 correct += (preds == y).sum().item()
@@ -84,13 +91,13 @@ def main():
             avg_loss = total_loss / total
             acc = correct / total
 
-            # MLflow 메트릭 기록
+            # 메트릭 MLflow 기록
             mlflow.log_metric("loss", avg_loss, step=epoch)
             mlflow.log_metric("accuracy", acc, step=epoch)
 
             print(f"Epoch {epoch+1}/{epochs} - Loss: {avg_loss:.4f} - Acc: {acc:.4f}")
 
-        # 학습된 모델 저장 및 MLflow artifact 등록
+        # 학습된 모델 저장 및 artifact 등록
         torch.save(model.state_dict(), "cnn_model.pt")
         mlflow.log_artifact("cnn_model.pt")
 
