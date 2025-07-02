@@ -1,0 +1,24 @@
+# 기본 수치 계산 및 ML 패키지
+numpy>=1.21,<1.24
+pandas>=1.3,<1.5
+
+# 시각화 패키지
+matplotlib>=3.5,<3.6
+seaborn>=0.11,<0.12
+
+# 오디오 처리 패키지
+librosa>=0.9,<0.10
+soundfile
+# 비디오, 이미지 IO
+imageio
+imageio-ffmpeg
+
+# 진행바
+tqdm
+
+# ML 실험 관리
+mlflow>=1.30,<1.31
+
+# 실시간 오디오 입력용
+sounddevice
+

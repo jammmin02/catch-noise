@@ -1,0 +1,23 @@
+# Jetson Nano 전원 켤 때마다 업데이트
+sudo apt update
+
+# GUI 기반 환경 설치
+sudo apt install x11-xserver-utils -y
+
+# X 서버 활성화
+xhost +
+
+# X 서버 비활성화
+xhost -
+
+# Dockerfile 빌드 & GPU 사용 Container 생성 및 실행
+docker build -t noise-preprocess -f hyochan/jetson/Docker/Dockerfile .
+docker run --runtime nvidia --name noise-runner --device /dev/snd -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -it -v $(pwd):/app -w /app noise-preprocess bash
+
+# .onnx 모델 실행을 위한 라이브러리 설치 -> .onnx 사용 안할거면 필요 없음
+pip3 install onnxsim
+python3 -m onnxsim cnn_lstm_model.onnx cnn_lstm_model_simplified.onnx
+
+# .onnx -> .trt 변환을 위한 명령어
+/usr/src/tensorrt/bin/trtexec --onnx=cnn_lstm_model.onnx --saveEngine=cnn_lstm_model.trt --fp16 --explicitBatch
+/usr/src/tensorrt/bin/trtexec --onnx=cnn_lstm_model_simplified.onnx --saveEngine=cnn_lstm_model.trt --fp16 --explicitBatch
