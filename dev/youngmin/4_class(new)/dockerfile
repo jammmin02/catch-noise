@@ -25,4 +25,8 @@ RUN pip3 install -r requirements.txt
 CMD ["bash"]
 
 
-# docker run --rm -it --gpus all --device /dev/snd -v "%cd%":/app -w /app --name noise_dev_gpu noise-pytorch-gpu
+# docker run --rm -it --gpus all ^
+#   -v "%cd%":/app ^
+#   -w /app ^
+#   --name noise_dev_gpu ^
+#   noise-pytorch-gpu

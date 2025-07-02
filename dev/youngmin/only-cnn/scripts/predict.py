@@ -107,7 +107,7 @@ def prediction_loop():
         ctx.pop()
 
 # ==== 스트리밍 및 쓰레드 시작 ====
-print("🎧 실시간 예측 시작... Ctrl+C로 종료 가능")
+print(" 실시간 예측 시작... Ctrl+C로 종료 가능")
 audio_stream = sd.InputStream(
     samplerate=mic_sr,
     channels=1,
@@ -130,7 +130,7 @@ try:
         time.sleep(0.05)
 
 except KeyboardInterrupt:
-    print("\n⛔ 종료됨")
+    print("\n 종료됨")
     audio_stream.stop()
     plt.ioff()
     plt.close()
